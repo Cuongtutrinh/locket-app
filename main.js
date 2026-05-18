@@ -88,21 +88,25 @@ async function capturePhoto() {
     return;
   }
   
-  // Set canvas đúng kích thước video
-  photoCanvas.width = cameraVideo.videoWidth;
-  photoCanvas.height = cameraVideo.videoHeight;
+  // Lấy kích thước thực tế của video
+  const videoWidth = cameraVideo.videoWidth;
+  const videoHeight = cameraVideo.videoHeight;
+  
+  // Set canvas đúng kích thước
+  photoCanvas.width = videoWidth;
+  photoCanvas.height = videoHeight;
   
   const context = photoCanvas.getContext('2d');
   
-  // Vẽ ảnh từ video
+  // IMPORTANT: Với cam trước, cần lật ảnh theo chiều NGANG
   if (currentFacingMode === 'user') {
-    // Cam trước: lật ảnh để đúng chiều
-    context.save();
+    // Lật ngang ảnh
+    context.translate(videoWidth, 0);
     context.scale(-1, 1);
-    context.drawImage(cameraVideo, -photoCanvas.width, 0, photoCanvas.width, photoCanvas.height);
-    context.restore();
+    context.drawImage(cameraVideo, 0, 0, videoWidth, videoHeight);
+    context.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
   } else {
-    context.drawImage(cameraVideo, 0, 0, photoCanvas.width, photoCanvas.height);
+    context.drawImage(cameraVideo, 0, 0, videoWidth, videoHeight);
   }
   
   // Chuyển thành file
@@ -172,8 +176,8 @@ async function loadMedia() {
       return;
     }
     
-    // Chỉ hiển thị ảnh, bỏ video
-    const imagesOnly = data.filter(item => item.type === 'image');
+    // Chỉ lấy ảnh, bỏ qua video
+    const imagesOnly = data.filter(item => item.type === 'image' || item.type?.startsWith('image'));
     
     if (imagesOnly.length === 0) {
       gallery.innerHTML = '<div class="loading">📭 Chưa có ảnh nào. Hãy upload lên nhé!</div>';
