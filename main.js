@@ -36,17 +36,33 @@ async function startCamera() {
   }
   
   try {
+    // Cấu hình độ phân giải CAO NHẤT có thể
     const constraints = {
       video: {
         facingMode: { exact: currentFacing },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 3840, min: 1920 },  // 4K hoặc ít nhất Full HD
+        height: { ideal: 2160, min: 1080 },
+        frameRate: { ideal: 30 }
       }
     };
     
-    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    // Thử với độ phân giải cao nhất
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      // Nếu không hỗ trợ 4K, fallback xuống Full HD
+      console.warn('Không hỗ trợ 4K, fallback xuống Full HD');
+      constraints.video.width = { ideal: 1920, min: 1280 };
+      constraints.video.height = { ideal: 1080, min: 720 };
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+    
     cameraPreview.srcObject = currentStream;
     await cameraPreview.play();
+    
+    // Log độ phân giải thực tế
+    console.log('Video track settings:', currentStream.getVideoTracks()[0].getSettings());
+    console.log(`Độ phân giải: ${cameraPreview.videoWidth} x ${cameraPreview.videoHeight}`);
     
     // Thêm attribute để CSS xử lý lật video
     if (currentFacing === 'user') {
@@ -76,17 +92,20 @@ async function takePhoto() {
     return;
   }
   
+  // Lấy kích thước THỰC TẾ của video (sẽ là HD/4K)
   const width = cameraPreview.videoWidth;
   const height = cameraPreview.videoHeight;
+  
+  console.log(`Chụp ảnh với độ phân giải: ${width} x ${height}`);
   
   hiddenCanvas.width = width;
   hiddenCanvas.height = height;
   
   const ctx = hiddenCanvas.getContext('2d');
   
-  // Vẽ ảnh từ camera
+  // Vẽ ảnh từ camera với chất lượng cao nhất
   if (currentFacing === 'user') {
-    // Cách 1: Lật ngang và giữ nguyên vị trí
+    // Cam trước: lật ngang
     ctx.save();
     ctx.translate(width, 0);
     ctx.scale(-1, 1);
@@ -96,18 +115,20 @@ async function takePhoto() {
     ctx.drawImage(cameraPreview, 0, 0, width, height);
   }
   
-  // Chuyển thành file
+  // Chuyển thành file với chất lượng tối đa (1.0 = 100%)
   hiddenCanvas.toBlob(async (blob) => {
     if (!blob) {
       alert('Chụp ảnh thất bại');
       return;
     }
     
+    console.log(`Kích thước ảnh: ${(blob.size / 1024).toFixed(2)} KB`);
+    
     const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
     await uploadPhoto(file);
     closeCameraScreen();
     
-  }, 'image/jpeg', 0.95);
+  }, 'image/jpeg', 1.0); // Chất lượng tối đa
 }
 
 // ========== UPLOAD ẢNH LÊN SUPABASE ==========
@@ -219,6 +240,31 @@ function setupRealtime() {
     )
     .subscribe();
 }
+
+// Kiểm tra camera hỗ trợ độ phân giải nào
+async function checkCameraCapabilities() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const videoDevices = devices.filter(device => device.kind === 'videoinput');
+  
+  console.log('Camera devices:', videoDevices);
+  
+  for (const device of videoDevices) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: device.deviceId }
+      });
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities();
+      console.log(`Camera ${device.label} capabilities:`, capabilities);
+      stream.getTracks().forEach(track => track.stop());
+    } catch (err) {
+      console.error('Error checking camera:', err);
+    }
+  }
+}
+
+// Gọi hàm này khi load để debug
+checkCameraCapabilities();
 
 // ========== GÁN SỰ KIỆN ==========
 openCameraBtn.onclick = openCameraScreen;
