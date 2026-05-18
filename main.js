@@ -34,20 +34,25 @@ async function startCamera() {
   if (currentStream) {
     currentStream.getTracks().forEach(track => track.stop());
   }
-  
+
   try {
     const constraints = {
       video: {
-        facingMode: { exact: currentFacing },
+        facingMode: { ideal: currentFacing },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
-      }
+      },
+      audio: false
     };
-    
+
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     cameraPreview.srcObject = currentStream;
+    cameraPreview.autoplay = true;
+    cameraPreview.playsInline = true;
+    cameraPreview.muted = true;
+    cameraPreview.controls = false;
+    cameraPreview.removeAttribute('controls');
     await cameraPreview.play();
-    
   } catch (err) {
     console.error('Camera error:', err);
     alert('Không thể mở camera: ' + err.message);

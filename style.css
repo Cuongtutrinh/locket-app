@@ -127,6 +127,7 @@ body {
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .camera-screen.hidden {
@@ -138,23 +139,25 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  padding: 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
   display: flex;
   justify-content: space-between;
   z-index: 10;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.65), rgba(0,0,0,0));
 }
 
 .close-cam, .switch-cam {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.6);
-  border: none;
+  background: rgba(17,17,17,0.5);
+  border: 1px solid rgba(255,255,255,0.14);
   color: white;
   font-size: 20px;
   cursor: pointer;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.24);
 }
 
 .camera-preview-area {
@@ -163,12 +166,15 @@ body {
   align-items: center;
   justify-content: center;
   background: black;
+  position: relative;
 }
 
 #cameraPreview {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  background: black;
+  transform: translateZ(0);
 }
 
 .camera-bottom-bar {
@@ -176,20 +182,21 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 30px;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
-  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
 }
 
 .take-photo-btn {
-  width: 72px;
-  height: 72px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
-  background: white;
-  border: none;
-  padding: 4px;
+  background: transparent;
+  border: 4px solid rgba(255,255,255,0.95);
+  padding: 8px;
   cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.25);
 }
 
 .take-photo-btn:active {
@@ -200,12 +207,42 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: white;
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(255,255,255,0.65);
+}
+
+.take-photo-btn:hover {
+  transform: translateY(-1px);
+}
+
+.take-photo-btn:focus-visible,
+.close-cam:focus-visible,
+.switch-cam:focus-visible,
+#copyBtn:focus-visible,
+.btn-camera:focus-visible,
+.btn-upload:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.85);
+  outline-offset: 3px;
 }
 
 /* Responsive */
 @media (max-width: 500px) {
   .image-grid {
     gap: 8px;
+  }
+
+  .camera-top-bar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .camera-bottom-bar {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .take-photo-btn {
+    width: 80px;
+    height: 80px;
   }
 }
