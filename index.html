@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <title>Locket Clone</title>
+  <title>Locket Clone - Video</title>
   <link rel="stylesheet" href="/style.css">
   <meta name="theme-color" content="#000000">
 </head>
@@ -19,19 +19,19 @@
     </div>
 
     <div class="action-bar">
-      <button id="openCameraBtn" class="btn-camera">📷 Mở Camera</button>
-      <button id="uploadImageBtn" class="btn-upload">🖼️ Upload ảnh</button>
+      <button id="openCameraBtn" class="btn-camera">🎥 Quay video</button>
+      <button id="uploadVideoBtn" class="btn-upload">📁 Upload video</button>
     </div>
 
     <div class="gallery">
-      <h3>📸 Ảnh đã chia sẻ</h3>
-      <div id="imageGrid" class="image-grid">
+      <h3>🎬 Video đã chia sẻ</h3>
+      <div id="videoGrid" class="video-grid">
         <div class="loading">Đang tải...</div>
       </div>
     </div>
   </div>
 
-  <!-- MÀN HÌNH CAMERA (POPUP) -->
+  <!-- MÀN HÌNH CAMERA (QUAY VIDEO) -->
   <div id="cameraScreen" class="camera-screen hidden">
     <div class="camera-top-bar">
       <button id="closeCamera" class="close-cam">✕</button>
@@ -43,13 +43,23 @@
     </div>
     
     <div class="camera-bottom-bar">
-      <button id="takePhotoBtn" class="take-photo-btn">
-        <div class="inner-circle"></div>
+      <!-- Timer hiển thị giây đã quay -->
+      <div id="timerDisplay" class="timer hidden">0:00</div>
+      
+      <!-- Nút quay Locket style -->
+      <button id="recordBtn" class="record-btn-locket">
+        <div class="record-outer-ring"></div>
+        <div class="record-inner-circle"></div>
+      </button>
+      
+      <!-- Nút dừng (hiện khi đang quay) -->
+      <button id="stopRecordBtn" class="stop-btn-locket hidden">
+        ⏹️ Dừng
       </button>
     </div>
   </div>
 
-  <input type="file" id="fileUpload" accept="image/*" style="display: none;">
+  <input type="file" id="fileUpload" accept="video/*" style="display: none;">
   <canvas id="hiddenCanvas" style="display: none;"></canvas>
 
   <script type="module" src="/main.js"></script>
