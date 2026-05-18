@@ -71,7 +71,6 @@ body {
   display: flex;
   gap: 12px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -90,52 +89,6 @@ body {
 
 .camera-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 .upload-btn { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.video-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-
-.camera-preview {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: black;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-}
-
-.camera-preview.hidden { display: none; }
-
-.camera-preview video {
-  width: 100%;
-  max-height: 70vh;
-  border-radius: 16px;
-  background: black;
-}
-
-.camera-controls {
-  display: flex;
-  gap: 16px;
-  margin-top: 20px;
-  justify-content: center;
-}
-
-.capture-btn, .record-btn, .stop-btn, .close-btn {
-  padding: 14px 24px;
-  border: none;
-  border-radius: 40px;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.capture-btn { background: #ff4757; color: white; }
-.record-btn { background: #ff4757; color: white; }
-.stop-btn { background: #2ed573; color: white; }
-.close-btn { background: #747d8c; color: white; }
 
 .gallery-section h2 {
   margin-bottom: 16px;
@@ -158,7 +111,7 @@ body {
   cursor: pointer;
 }
 
-.gallery-item img, .gallery-item video {
+.gallery-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -170,33 +123,112 @@ body {
   color: #999;
 }
 
-@media (max-width: 480px) {
-  .app-container { border-radius: 0; min-height: 100vh; }
-  .action-buttons { flex-direction: column; }
-  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+/* ========== CAMERA MODAL ========== */
+.camera-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: black;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Nút chuyển đổi camera */
-.switch-cam-btn {
-  background: #4a90e2 !important;
-  color: white;
-  padding: 14px 24px;
+.camera-modal.hidden {
+  display: none;
+}
+
+.camera-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: black;
+  position: relative;
+}
+
+.camera-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 10;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+}
+
+.modal-close-btn, .switch-cam-modal {
+  background: rgba(0,0,0,0.6);
   border: none;
-  border-radius: 40px;
-  font-size: 18px;
+  color: white;
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   cursor: pointer;
+  backdrop-filter: blur(10px);
   transition: transform 0.2s;
 }
 
-.switch-cam-btn:active {
+.modal-close-btn:active, .switch-cam-modal:active {
   transform: scale(0.95);
 }
 
-/* Đảm bảo video không bị lệch */
-#video {
-  transform-origin: center;
-  object-fit: cover;
+.camera-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+  overflow: hidden;
+}
+
+#cameraVideo {
   width: 100%;
-  height: auto;
-  max-height: 70vh;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 30px 20px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+}
+
+.shoot-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: white;
+  border: 4px solid rgba(255,255,255,0.5);
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.1s;
+}
+
+.shoot-btn:active {
+  transform: scale(0.92);
+}
+
+.shoot-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: white;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .app-container { border-radius: 0; min-height: 100vh; }
+  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
