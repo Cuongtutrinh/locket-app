@@ -1,7 +1,11 @@
 /* ─────────────────────────────────────────
-   Locket Clone — Light Theme
-   Palette: warm cream bg · coral accent · clean white cards
-   Font: Outfit (Google Fonts)
+   Locket Clone · Light Theme
+   Perf rules:
+   · Zero external fonts — system stack only
+   · Animations: transform + opacity only (compositor thread)
+   · No backdrop-filter on main app (only camera, where unavoidable)
+   · No box-shadow on animating elements
+   · contain: layout style on gallery for isolation
 ───────────────────────────────────────── */
 
 *, *::before, *::after {
@@ -11,29 +15,23 @@
 }
 
 :root {
-  --bg:           #fff7f4;
-  --bg-card:      #ffffff;
-  --bg-subtle:    #fef1eb;
-  --accent:       #ff5c35;
-  --accent-lt:    #fff0eb;
-  --accent-dark:  #e0471f;
-  --blue:         #3b7cff;
-  --blue-lt:      #edf2ff;
-  --border:       #eeddd7;
-  --border-soft:  #f5e8e2;
-  --text-1:       #1a110d;
-  --text-2:       #7a5e56;
-  --text-3:       #c4a89e;
-  --shadow-xs:    0 1px 3px rgba(160,80,50,0.07);
-  --shadow-sm:    0 2px 10px rgba(160,80,50,0.09);
-  --shadow-md:    0 6px 22px rgba(160,80,50,0.12);
-  --r-sm:         10px;
-  --r-md:         16px;
-  --r-lg:         20px;
-  --r-xl:         28px;
-  --font:         'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --safe-top:     env(safe-area-inset-top, 0px);
-  --safe-bot:     env(safe-area-inset-bottom, 0px);
+  --bg:          #fff8f5;
+  --bg-card:     #ffffff;
+  --bg-muted:    #fef0ea;
+  --accent:      #ff5733;
+  --accent-d:    #e03d1f;
+  --accent-lt:   #ffe9e3;
+  --border:      #f0ddd6;
+  --text-1:      #1c110d;
+  --text-2:      #7d5c52;
+  --text-3:      #c0a099;
+  --r-md:        14px;
+  --r-lg:        18px;
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bot:    env(safe-area-inset-bottom, 0px);
+
+  /* System font — zero network cost */
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
 
 html, body {
@@ -46,200 +44,169 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ══════════════════════════════
-   MAIN APP SHELL
-══════════════════════════════ */
+/* ══════════════════
+   LAYOUT
+══════════════════ */
 .main-app {
   max-width: 500px;
   margin: 0 auto;
   min-height: 100vh;
   background: var(--bg);
-  display: flex;
-  flex-direction: column;
 }
 
-/* ══════════════════════════════
+/* ══════════════════
    HEADER
-══════════════════════════════ */
+══════════════════ */
 .header {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-soft);
-  padding-top: var(--safe-top);
   position: sticky;
   top: 0;
-  z-index: 50;
-  box-shadow: var(--shadow-xs);
+  z-index: 40;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: var(--safe-top) 0 0;
 }
 
-.header-inner {
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-/* Brand */
-.brand {
+.header-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 13px 18px;
 }
 
-.brand-logo {
-  width: 38px;
-  height: 38px;
-  background: linear-gradient(145deg, #ff7550, var(--accent));
-  border-radius: 12px;
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(255,92,53,0.3);
   flex-shrink: 0;
 }
 
-.brand-logo svg {
-  width: 19px;
-  height: 19px;
-  color: #fff;
-}
-
-.brand h1 {
-  font-size: 21px;
-  font-weight: 800;
+.header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
   color: var(--text-1);
-  letter-spacing: -0.4px;
 }
 
-/* URL box (populated by main.js) */
+/* url-box populated by main.js */
 .url-box {
+  padding: 0 18px 13px;
   display: flex;
-  align-items: center;
   gap: 8px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 7px 12px;
-  max-width: 200px;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
 }
 
 #urlText {
+  flex: 1;
+  min-width: 0;
   font-size: 11px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: 'Menlo', 'Courier New', monospace;
   color: var(--text-2);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-  background: transparent;
 }
 
 #copyBtn {
   font-family: var(--font);
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-lt);
+  border: 1px solid #ffc5b5;
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 5px 11px;
   cursor: pointer;
+  white-space: nowrap;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-#copyBtn:hover { background: var(--accent-dark); }
-#copyBtn:active { transform: scale(0.95); }
+#copyBtn:active {
+  background: var(--accent);
+  color: #fff;
+}
 
-/* ══════════════════════════════
+/* ══════════════════
    ACTION BAR
-══════════════════════════════ */
+══════════════════ */
 .action-bar {
   display: flex;
   gap: 10px;
-  padding: 18px 20px 12px;
+  padding: 16px 18px 10px;
 }
 
 .btn-camera,
 .btn-upload {
   flex: 1;
-  height: 52px;
+  height: 50px;
   border: none;
   border-radius: var(--r-md);
   font-family: var(--font);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  transition: transform 0.13s ease, box-shadow 0.13s ease;
-  -webkit-tap-highlight-color: transparent;
+  gap: 7px;
+  /* transform is compositor-safe */
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  will-change: transform;
 }
 
-.btn-camera svg,
-.btn-upload svg {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
-}
-
-/* Primary — coral */
 .btn-camera {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(255,92,53,0.28);
+  /* static shadow — not animating */
+  box-shadow: 0 3px 12px rgba(255,87,51,0.25);
 }
 
-.btn-camera:hover  { background: var(--accent-dark); box-shadow: 0 6px 18px rgba(255,92,53,0.32); }
-.btn-camera:active { transform: scale(0.96); box-shadow: 0 2px 6px rgba(255,92,53,0.18); }
-
-/* Secondary — outlined */
 .btn-upload {
   background: var(--bg-card);
   color: var(--text-2);
   border: 1.5px solid var(--border);
-  box-shadow: var(--shadow-xs);
 }
 
-.btn-upload:hover  { border-color: var(--accent); color: var(--accent); }
-.btn-upload:active { transform: scale(0.96); box-shadow: none; }
+.btn-camera:active { transform: scale(0.95); opacity: 0.92; }
+.btn-upload:active  { transform: scale(0.95); opacity: 0.85; }
 
-/* ══════════════════════════════
+/* ══════════════════
    GALLERY
-══════════════════════════════ */
+══════════════════ */
 .gallery {
-  flex: 1;
-  padding: 6px 20px 32px;
+  padding: 8px 18px 28px;
+  contain: layout style; /* isolate reflow */
 }
 
 .gallery-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
-  padding: 4px 0;
+  margin-bottom: 12px;
 }
 
 .gallery-header h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-1);
-  letter-spacing: -0.2px;
 }
 
-.gallery-count {
+.photo-count {
   font-size: 12px;
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-lt);
-  border: 1px solid #ffd4c6;
+  border: 1px solid #ffc5b5;
   border-radius: 20px;
-  padding: 3px 11px;
+  padding: 2px 10px;
 }
 
 /* ── Grid ── */
@@ -256,56 +223,30 @@ html, body {
   border-radius: var(--r-md);
   cursor: pointer;
   display: block;
-  box-shadow: var(--shadow-xs);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  /* Promote each image to its own layer only on hover/active */
+  transition: transform 0.16s ease;
 }
 
 .image-grid img:active {
-  transform: scale(0.96);
-  box-shadow: none;
+  transform: scale(0.95);
 }
 
-/* ── Loading state ── */
+/* ── Loading ── */
 .loading {
   grid-column: span 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 56px 20px;
+  text-align: center;
+  padding: 52px 20px;
   color: var(--text-3);
   font-size: 14px;
-  font-weight: 500;
 }
 
-.loading-dots {
-  display: flex;
-  gap: 6px;
-}
-
-.loading-dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--border);
-  animation: bounce 1.3s ease-in-out infinite;
-}
-
-.loading-dots span:nth-child(2) { animation-delay: 0.18s; }
-.loading-dots span:nth-child(3) { animation-delay: 0.36s; }
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0);    background: var(--border); }
-  40%            { transform: translateY(-7px); background: var(--accent);  }
-}
-
-/* ══════════════════════════════
+/* ══════════════════
    CAMERA SCREEN
-══════════════════════════════ */
+══════════════════ */
 .camera-screen {
   position: fixed;
   inset: 0;
-  background: #0a0a0a;
+  background: #000;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -316,26 +257,24 @@ html, body {
   display: none;
 }
 
-/* Top bar */
 .camera-top-bar {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  /* gradient is non-animating — fine */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
 }
 
-.cam-label {
-  font-family: var(--font);
+.cam-title {
   font-size: 15px;
   font-weight: 600;
   color: rgba(255,255,255,0.9);
-  letter-spacing: 0.2px;
 }
 
 .close-cam,
@@ -343,42 +282,35 @@ html, body {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.15);
+  /* semi-opaque solid bg — no backdrop-filter cost */
+  background: rgba(30,30,30,0.65);
+  border: 1px solid rgba(255,255,255,0.18);
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: background 0.13s, transform 0.13s;
-}
-
-.close-cam svg,
-.switch-cam svg {
-  width: 19px;
-  height: 19px;
+  transition: transform 0.12s ease, background 0.12s ease;
 }
 
 .close-cam:active,
 .switch-cam:active {
   transform: scale(0.88);
-  background: rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.18);
 }
 
 /* Preview */
 .camera-preview-area {
   flex: 1;
-  position: relative;
-  overflow: hidden;
   background: #000;
+  overflow: hidden;
 }
 
 #cameraPreview {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   pointer-events: none;
   touch-action: none;
   user-select: none;
@@ -396,74 +328,55 @@ html, body {
   transform: scaleX(-1);
 }
 
-/* Viewfinder corners */
-.viewfinder {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.vf {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-color: rgba(255,255,255,0.75);
-  border-style: solid;
-}
-
-.vf.tl { top: 20px;    left: 20px;    border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
-.vf.tr { top: 20px;    right: 20px;   border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
-.vf.bl { bottom: 20px; left: 20px;    border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
-.vf.br { bottom: 20px; right: 20px;   border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
-
 /* Bottom bar */
 .camera-bottom-bar {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 28px 24px calc(28px + env(safe-area-inset-bottom));
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
-  align-items: center;
-  background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
 }
 
-/* Shutter button */
+/* Shutter — transform only, no box-shadow animation */
 .take-photo-btn {
-  width: 82px;
-  height: 82px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
-  border: 3.5px solid rgba(255,255,255,0.92);
   background: transparent;
-  padding: 7px;
+  border: 4px solid rgba(255,255,255,0.95);
+  padding: 8px;
   cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.25);
   transition: transform 0.12s ease;
-  box-shadow: 0 0 0 6px rgba(255,255,255,0.12);
+  will-change: transform;
 }
 
 .inner-circle {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #fff;
+  background: rgba(255,255,255,0.98);
   transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .take-photo-btn:active {
-  transform: scale(0.91);
+  transform: scale(0.93);
 }
 
 .take-photo-btn:active .inner-circle {
-  transform: scale(0.88);
+  transform: scale(0.9);
   opacity: 0.85;
 }
 
-/* ══════════════════════════════
-   FOCUS / ACCESSIBILITY
-══════════════════════════════ */
+/* ══════════════════
+   FOCUS
+══════════════════ */
 .btn-camera:focus-visible,
-.btn-upload:focus-visible {
+.btn-upload:focus-visible,
+#copyBtn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -475,24 +388,11 @@ html, body {
   outline-offset: 3px;
 }
 
-#copyBtn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ══════════════════════════════
+/* ══════════════════
    RESPONSIVE
-══════════════════════════════ */
+══════════════════ */
 @media (max-width: 500px) {
   .image-grid { gap: 7px; }
-
-  .camera-top-bar {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
-  .take-photo-btn {
-    width: 76px;
-    height: 76px;
-  }
+  .camera-top-bar { padding-left: 14px; padding-right: 14px; }
+  .take-photo-btn { width: 78px; height: 78px; }
 }
