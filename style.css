@@ -1,129 +1,252 @@
-* {
+/* ─────────────────────────────────────────
+   Locket Clone · Light Theme
+   Perf rules:
+   · Zero external fonts — system stack only
+   · Animations: transform + opacity only (compositor thread)
+   · No backdrop-filter on main app (only camera, where unavoidable)
+   · No box-shadow on animating elements
+   · contain: layout style on gallery for isolation
+───────────────────────────────────────── */
+
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-  background: #f5f5f5;
-  min-height: 100vh;
+:root {
+  --bg:          #fff8f5;
+  --bg-card:     #ffffff;
+  --bg-muted:    #fef0ea;
+  --accent:      #ff5733;
+  --accent-d:    #e03d1f;
+  --accent-lt:   #ffe9e3;
+  --border:      #f0ddd6;
+  --text-1:      #1c110d;
+  --text-2:      #7d5c52;
+  --text-3:      #c0a099;
+  --r-md:        14px;
+  --r-lg:        18px;
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bot:    env(safe-area-inset-bottom, 0px);
+
+  /* System font — zero network cost */
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
 
-/* MÀN HÌNH CHÍNH */
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ══════════════════
+   LAYOUT
+══════════════════ */
 .main-app {
   max-width: 500px;
   margin: 0 auto;
-  background: white;
   min-height: 100vh;
+  background: var(--bg);
 }
 
+/* ══════════════════
+   HEADER
+══════════════════ */
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: var(--safe-top) 0 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .header h1 {
-  font-size: 24px;
-  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-1);
 }
 
+/* url-box populated by main.js */
 .url-box {
-  background: rgba(255,255,255,0.2);
-  border-radius: 10px;
-  padding: 8px;
+  padding: 0 18px 13px;
   display: flex;
   gap: 8px;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
 }
 
 #urlText {
-  font-size: 11px;
-  background: rgba(0,0,0,0.3);
-  padding: 6px 10px;
-  border-radius: 6px;
-  word-break: break-all;
   flex: 1;
-  font-family: monospace;
+  min-width: 0;
+  font-size: 11px;
+  font-family: 'Menlo', 'Courier New', monospace;
+  color: var(--text-2);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #copyBtn {
-  background: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-lt);
+  border: 1px solid #ffc5b5;
+  border-radius: 8px;
+  padding: 5px 11px;
   cursor: pointer;
-  font-weight: bold;
-  color: #667eea;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
 
+#copyBtn:active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ══════════════════
+   ACTION BAR
+══════════════════ */
 .action-bar {
   display: flex;
-  gap: 12px;
-  padding: 20px;
+  gap: 10px;
+  padding: 16px 18px 10px;
 }
 
-.btn-camera, .btn-upload {
+.btn-camera,
+.btn-upload {
   flex: 1;
-  padding: 14px;
+  height: 50px;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: bold;
+  border-radius: var(--r-md);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  /* transform is compositor-safe */
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  will-change: transform;
 }
 
 .btn-camera {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: var(--accent);
+  color: #fff;
+  /* static shadow — not animating */
+  box-shadow: 0 3px 12px rgba(255,87,51,0.25);
 }
 
 .btn-upload {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: var(--bg-card);
+  color: var(--text-2);
+  border: 1.5px solid var(--border);
 }
 
+.btn-camera:active { transform: scale(0.95); opacity: 0.92; }
+.btn-upload:active  { transform: scale(0.95); opacity: 0.85; }
+
+/* ══════════════════
+   GALLERY
+══════════════════ */
 .gallery {
-  padding: 0 20px 20px 20px;
+  padding: 8px 18px 28px;
+  contain: layout style; /* isolate reflow */
 }
 
-.gallery h3 {
-  margin-bottom: 15px;
-  color: #333;
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
+.gallery-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.photo-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-lt);
+  border: 1px solid #ffc5b5;
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+
+/* ── Grid ── */
 .image-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .image-grid img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   cursor: pointer;
+  display: block;
+  /* Promote each image to its own layer only on hover/active */
+  transition: transform 0.16s ease;
 }
 
+.image-grid img:active {
+  transform: scale(0.95);
+}
+
+/* ── Loading ── */
 .loading {
-  text-align: center;
-  padding: 40px;
-  color: #999;
   grid-column: span 3;
+  text-align: center;
+  padding: 52px 20px;
+  color: var(--text-3);
+  font-size: 14px;
 }
 
-/* ========== MÀN HÌNH CAMERA ========== */
+/* ══════════════════
+   CAMERA SCREEN
+══════════════════ */
 .camera-screen {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: black;
+  inset: 0;
+  background: #000;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -139,34 +262,48 @@ body {
   top: 0;
   left: 0;
   right: 0;
+  z-index: 10;
   padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  z-index: 10;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.65), rgba(0,0,0,0));
+  /* gradient is non-animating — fine */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
 }
 
-.close-cam, .switch-cam {
-  width: 46px;
-  height: 46px;
+.cam-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+
+.close-cam,
+.switch-cam {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: rgba(17,17,17,0.5);
-  border: 1px solid rgba(255,255,255,0.14);
-  color: white;
-  font-size: 20px;
+  /* semi-opaque solid bg — no backdrop-filter cost */
+  background: rgba(30,30,30,0.65);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #fff;
   cursor: pointer;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.24);
-}
-
-.camera-preview-area {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: black;
-  position: relative;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.close-cam:active,
+.switch-cam:active {
+  transform: scale(0.88);
+  background: rgba(255,255,255,0.18);
+}
+
+/* Preview */
+.camera-preview-area {
+  flex: 1;
+  background: #000;
+  overflow: hidden;
 }
 
 #cameraPreview {
@@ -174,8 +311,6 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  background: black;
-  transform: scaleX(1);
   pointer-events: none;
   touch-action: none;
   user-select: none;
@@ -183,18 +318,17 @@ body {
   -webkit-touch-callout: none;
 }
 
-#cameraPreview::-webkit-media-controls {
-  display: none !important;
-}
-
-#cameraPreview::-webkit-media-controls-panel {
-  display: none !important;
-}
-
+#cameraPreview::-webkit-media-controls,
+#cameraPreview::-webkit-media-controls-panel,
 #cameraPreview::-webkit-media-controls-play-button {
   display: none !important;
 }
 
+.camera-screen[data-facing="user"] #cameraPreview {
+  transform: scaleX(-1);
+}
+
+/* Bottom bar */
 .camera-bottom-bar {
   position: absolute;
   bottom: 0;
@@ -203,13 +337,10 @@ body {
   padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
-  background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
+  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
 }
 
-.camera-screen[data-facing="user"] #cameraPreview {
-  transform: scaleX(-1);
-}
-
+/* Shutter — transform only, no box-shadow animation */
 .take-photo-btn {
   width: 84px;
   height: 84px;
@@ -219,10 +350,8 @@ body {
   padding: 8px;
   cursor: pointer;
   box-shadow: 0 10px 28px rgba(0,0,0,0.25);
-}
-
-.take-photo-btn:active {
-  transform: scale(0.95);
+  transition: transform 0.12s ease;
+  will-change: transform;
 }
 
 .inner-circle {
@@ -230,41 +359,40 @@ body {
   height: 100%;
   border-radius: 50%;
   background: rgba(255,255,255,0.98);
-  border: 1px solid rgba(255,255,255,0.65);
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
-.take-photo-btn:hover {
-  transform: translateY(-1px);
+.take-photo-btn:active {
+  transform: scale(0.93);
+}
+
+.take-photo-btn:active .inner-circle {
+  transform: scale(0.9);
+  opacity: 0.85;
+}
+
+/* ══════════════════
+   FOCUS
+══════════════════ */
+.btn-camera:focus-visible,
+.btn-upload:focus-visible,
+#copyBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .take-photo-btn:focus-visible,
 .close-cam:focus-visible,
-.switch-cam:focus-visible,
-#copyBtn:focus-visible,
-.btn-camera:focus-visible,
-.btn-upload:focus-visible {
-  outline: 2px solid rgba(255,255,255,0.85);
+.switch-cam:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.8);
   outline-offset: 3px;
 }
 
-/* Responsive */
+/* ══════════════════
+   RESPONSIVE
+══════════════════ */
 @media (max-width: 500px) {
-  .image-grid {
-    gap: 8px;
-  }
-
-  .camera-top-bar {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
-  .camera-bottom-bar {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  .take-photo-btn {
-    width: 80px;
-    height: 80px;
-  }
+  .image-grid { gap: 7px; }
+  .camera-top-bar { padding-left: 14px; padding-right: 14px; }
+  .take-photo-btn { width: 78px; height: 78px; }
 }
