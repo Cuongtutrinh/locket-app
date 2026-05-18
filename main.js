@@ -21,6 +21,37 @@ const urlText = document.getElementById('urlText');
 // State
 let currentStream = null;
 let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
+let availableVideoDevices = [];
+let activeVideoIndex = 0;
+
+function matchesFacingLabel(label, facing) {
+  const value = (label || '').toLowerCase();
+
+  if (facing === 'user') {
+    return /front|selfie|user/.test(value);
+  }
+
+  return /back|rear|environment/.test(value);
+}
+
+async function refreshVideoDevices() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  availableVideoDevices = devices.filter(device => device.kind === 'videoinput');
+  return availableVideoDevices;
+}
+
+function selectVideoDevice(devices) {
+  if (!devices.length) {
+    return null;
+  }
+
+  if (activeVideoIndex < 0 || activeVideoIndex >= devices.length) {
+    const matchedIndex = devices.findIndex(device => matchesFacingLabel(device.label, currentFacing));
+    activeVideoIndex = matchedIndex >= 0 ? matchedIndex : (currentFacing === 'user' ? devices.length - 1 : 0);
+  }
+
+  return devices[activeVideoIndex] || devices[0];
+}
 
 // Hiển thị URL
 urlText.textContent = window.location.href;
@@ -36,9 +67,12 @@ async function startCamera() {
   }
 
   try {
+    const devices = await refreshVideoDevices();
+    const selectedDevice = selectVideoDevice(devices);
+
     const constraints = {
       video: {
-        facingMode: { ideal: currentFacing },
+        ...(selectedDevice ? { deviceId: { exact: selectedDevice.deviceId } } : { facingMode: { ideal: currentFacing } }),
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       },
@@ -47,11 +81,18 @@ async function startCamera() {
 
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     cameraPreview.srcObject = currentStream;
+    cameraPreview.setAttribute('playsinline', '');
+    cameraPreview.setAttribute('webkit-playsinline', '');
     cameraPreview.autoplay = true;
     cameraPreview.playsInline = true;
     cameraPreview.muted = true;
     cameraPreview.controls = false;
     cameraPreview.removeAttribute('controls');
+    cameraPreview.disablePictureInPicture = true;
+    cameraPreview.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
+    cameraPreview.style.pointerEvents = 'none';
+    cameraPreview.style.touchAction = 'none';
+    cameraPreview.style.transform = currentFacing === 'user' ? 'scaleX(-1)' : 'none';
     await cameraPreview.play();
   } catch (err) {
     console.error('Camera error:', err);
@@ -81,17 +122,9 @@ async function takePhoto() {
   hiddenCanvas.height = height;
   
   const ctx = hiddenCanvas.getContext('2d');
-  
-  // Vẽ ảnh từ camera
-  if (currentFacing === 'user') {
-    // Cam trước: lật ngang
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(cameraPreview, 0, 0, width, height);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-  } else {
-    ctx.drawImage(cameraPreview, 0, 0, width, height);
-  }
+
+  // Vẽ frame gốc từ camera; phần mirror chỉ áp cho preview.
+  ctx.drawImage(cameraPreview, 0, 0, width, height);
   
   // Chuyển thành file
   hiddenCanvas.toBlob(async (blob) => {
@@ -184,6 +217,10 @@ function closeCameraScreen() {
 
 // ========== ĐỔI CAM TRƯỚC/SAU ==========
 function switchCameraMode() {
+  if (availableVideoDevices.length > 1) {
+    activeVideoIndex = (activeVideoIndex + 1) % availableVideoDevices.length;
+  }
+
   currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
   startCamera();
 }
