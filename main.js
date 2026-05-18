@@ -22,12 +22,6 @@ const urlText = document.getElementById('urlText');
 let currentStream = null;
 let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
 
-// Hiển thị URL
-urlText.textContent = window.location.href;
-copyBtn.onclick = () => {
-  navigator.clipboard.writeText(window.location.href);
-  alert('✅ Đã copy link!');
-};
 
 // ========== MỞ CAMERA ==========
 async function startCamera() {
