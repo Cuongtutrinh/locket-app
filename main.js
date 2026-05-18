@@ -20,37 +20,20 @@ const urlText = document.getElementById('urlText');
 
 // State
 let currentStream = null;
-let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
-let availableVideoDevices = [];
-let activeVideoIndex = 0;
+let frontCameraDevice = null;
+let backCameraDevice = null;
+let isUsingFrontCamera = false;
 
-function matchesFacingLabel(label, facing) {
-  const value = (label || '').toLowerCase();
-
-  if (facing === 'user') {
-    return /front|selfie|user/.test(value);
-  }
-
-  return /back|rear|environment/.test(value);
-}
-
-async function refreshVideoDevices() {
+async function findCameras() {
   const devices = await navigator.mediaDevices.enumerateDevices();
-  availableVideoDevices = devices.filter(device => device.kind === 'videoinput');
-  return availableVideoDevices;
-}
+  const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-function selectVideoDevice(devices) {
-  if (!devices.length) {
-    return null;
-  }
+  // Heuristics to find the main front and back cameras
+  backCameraDevice = videoDevices.find(device => /back|rear|environment/i.test(device.label)) || videoDevices.find(d => !/front/i.test(d.label)) || videoDevices[0];
+  frontCameraDevice = videoDevices.find(device => /front|user|selfie/i.test(device.label)) || videoDevices.find(d => d.deviceId !== backCameraDevice?.deviceId);
 
-  if (activeVideoIndex < 0 || activeVideoIndex >= devices.length) {
-    const matchedIndex = devices.findIndex(device => matchesFacingLabel(device.label, currentFacing));
-    activeVideoIndex = matchedIndex >= 0 ? matchedIndex : (currentFacing === 'user' ? devices.length - 1 : 0);
-  }
-
-  return devices[activeVideoIndex] || devices[0];
+  // Set initial camera
+  isUsingFrontCamera = false; // Default to back camera
 }
 
 // Hiển thị URL
@@ -66,13 +49,19 @@ async function startCamera() {
     currentStream.getTracks().forEach(track => track.stop());
   }
 
-  try {
-    const devices = await refreshVideoDevices();
-    const selectedDevice = selectVideoDevice(devices);
+  // Ensure we have identified cameras first
+  if (!frontCameraDevice && !backCameraDevice) {
+    await findCameras();
+  }
 
+  const targetDevice = isUsingFrontCamera ? frontCameraDevice : backCameraDevice;
+  const facingMode = isUsingFrontCamera ? 'user' : 'environment';
+
+  try {
     const constraints = {
       video: {
-        ...(selectedDevice ? { deviceId: { exact: selectedDevice.deviceId } } : { facingMode: { ideal: currentFacing } }),
+        deviceId: targetDevice ? { exact: targetDevice.deviceId } : undefined,
+        facingMode: !targetDevice ? { ideal: facingMode } : undefined,
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       },
@@ -92,7 +81,8 @@ async function startCamera() {
     cameraPreview.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
     cameraPreview.style.pointerEvents = 'none';
     cameraPreview.style.touchAction = 'none';
-    cameraPreview.style.transform = currentFacing === 'user' ? 'scaleX(-1)' : 'none';
+    // Mirror the preview for the front camera
+    cameraPreview.style.transform = isUsingFrontCamera ? 'scaleX(-1)' : 'none';
     await cameraPreview.play();
   } catch (err) {
     console.error('Camera error:', err);
@@ -123,8 +113,17 @@ async function takePhoto() {
   
   const ctx = hiddenCanvas.getContext('2d');
 
-  // Vẽ frame gốc từ camera; phần mirror chỉ áp cho preview.
-  ctx.drawImage(cameraPreview, 0, 0, width, height);
+  // The preview is mirrored for the front camera, but the captured image should be natural.
+  // We draw the video frame to the canvas. If the preview was mirrored, we need to un-mirror it for the final image.
+  if (isUsingFrontCamera) {
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
+    // Reset transform to avoid affecting subsequent draws
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
+  }
   
   // Chuyển thành file
   hiddenCanvas.toBlob(async (blob) => {
@@ -217,11 +216,8 @@ function closeCameraScreen() {
 
 // ========== ĐỔI CAM TRƯỚC/SAU ==========
 function switchCameraMode() {
-  if (availableVideoDevices.length > 1) {
-    activeVideoIndex = (activeVideoIndex + 1) % availableVideoDevices.length;
-  }
-
-  currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+  // Toggle between front and back
+  isUsingFrontCamera = !isUsingFrontCamera;
   startCamera();
 }
 
@@ -265,6 +261,7 @@ uploadImageBtn.onclick = uploadFromFile;
 loadPhotos();
 setupRealtime();
 
+findCameras(); // Find cameras on startup
 // Service Worker (PWA)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
