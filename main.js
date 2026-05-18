@@ -20,43 +20,7 @@ const urlText = document.getElementById('urlText');
 
 // State
 let currentStream = null;
-let frontCameraDevice = null;
-let backCameraDevice = null;
-let isUsingFrontCamera = false;
-
-async function findCameras() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-    if (videoDevices.length < 2) {
-      // Not enough cameras to switch, use what's available
-      backCameraDevice = videoDevices[0];
-      frontCameraDevice = null;
-      return;
-    }
-
-    // Heuristics based on labels first
-    let potentialBack = videoDevices.filter(d => /back|rear|environment/i.test(d.label));
-    let potentialFront = videoDevices.filter(d => /front|user|selfie/i.test(d.label));
-
-    // Refine if labels are not clear
-    if (potentialBack.length === 0 && potentialFront.length === 0) {
-        // If no labels, assume the first is back and the last is front
-        backCameraDevice = videoDevices[0];
-        frontCameraDevice = videoDevices[videoDevices.length - 1];
-    } else {
-        backCameraDevice = potentialBack[0] || videoDevices.find(d => !potentialFront.includes(d)) || videoDevices[0];
-        frontCameraDevice = potentialFront[0] || videoDevices.find(d => d.deviceId !== backCameraDevice.deviceId);
-    }
-
-  } catch (err) {
-    console.error("Could not enumerate devices:", err);
-  } finally {
-    // Set initial camera state
-    isUsingFrontCamera = false; // Default to back camera
-  }
-}
+let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
 
 // Hiển thị URL
 urlText.textContent = window.location.href;
@@ -70,42 +34,20 @@ async function startCamera() {
   if (currentStream) {
     currentStream.getTracks().forEach(track => track.stop());
   }
-
-  // Ensure we have identified cameras first
-  if (!frontCameraDevice && !backCameraDevice) {
-    await findCameras();
-  }
-
-  const targetDevice = isUsingFrontCamera ? frontCameraDevice : backCameraDevice;
-  const facingMode = isUsingFrontCamera ? 'user' : 'environment';
-
+  
   try {
     const constraints = {
       video: {
-        deviceId: targetDevice ? { exact: targetDevice.deviceId } : undefined,
-        facingMode: !targetDevice ? { ideal: facingMode } : undefined,
+        facingMode: { exact: currentFacing },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
-      },
-      audio: false
+      }
     };
-
+    
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     cameraPreview.srcObject = currentStream;
-    cameraPreview.setAttribute('playsinline', '');
-    cameraPreview.setAttribute('webkit-playsinline', '');
-    cameraPreview.autoplay = true;
-    cameraPreview.playsInline = true;
-    cameraPreview.muted = true;
-    cameraPreview.controls = false;
-    cameraPreview.removeAttribute('controls');
-    cameraPreview.disablePictureInPicture = true;
-    cameraPreview.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
-    cameraPreview.style.pointerEvents = 'none';
-    cameraPreview.style.touchAction = 'none';
-    // Mirror the preview for the front camera
-    cameraPreview.style.transform = isUsingFrontCamera ? 'scaleX(-1)' : 'none';
     await cameraPreview.play();
+    
   } catch (err) {
     console.error('Camera error:', err);
     alert('Không thể mở camera: ' + err.message);
@@ -134,14 +76,13 @@ async function takePhoto() {
   hiddenCanvas.height = height;
   
   const ctx = hiddenCanvas.getContext('2d');
-
-  // The preview is mirrored for the front camera, but the captured image should be natural.
-  // We draw the video frame to the canvas. If the preview was mirrored, we need to un-mirror it for the final image.
-  if (isUsingFrontCamera) {
+  
+  // Vẽ ảnh từ camera
+  if (currentFacing === 'user') {
+    // Cam trước: lật ngang
     ctx.translate(width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(cameraPreview, 0, 0, width, height);
-    // Reset transform to avoid affecting subsequent draws
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   } else {
     ctx.drawImage(cameraPreview, 0, 0, width, height);
@@ -238,8 +179,7 @@ function closeCameraScreen() {
 
 // ========== ĐỔI CAM TRƯỚC/SAU ==========
 function switchCameraMode() {
-  // Toggle between front and back
-  isUsingFrontCamera = !isUsingFrontCamera;
+  currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
   startCamera();
 }
 
@@ -283,7 +223,6 @@ uploadImageBtn.onclick = uploadFromFile;
 loadPhotos();
 setupRealtime();
 
-findCameras(); // Find cameras on startup
 // Service Worker (PWA)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
