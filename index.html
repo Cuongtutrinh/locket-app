@@ -3,60 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <title>Locket Clone - Chia sẻ ảnh ngay</title>
+  <title>Locket Clone</title>
   <link rel="stylesheet" href="/style.css">
-  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#000000">
-  <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
-  <div class="app-container">
-    <header class="app-header">
+  <!-- Màn hình chính -->
+  <div class="main-app">
+    <div class="header">
       <h1>📸 Locket Clone</h1>
-      <p class="subtitle">Chia sẻ ảnh ngay lập tức</p>
-      <div class="share-url">
-        <span id="urlDisplay">Đang tải...</span>
-        <button id="copyUrlBtn" class="copy-btn">📋 Sao chép link</button>
-      </div>
-    </header>
-
-    <main class="content">
-      <div class="upload-section">
-        <div class="action-buttons">
-          <button id="cameraBtn" class="action-btn camera-btn">📷 Mở camera</button>
-          <button id="uploadBtn" class="action-btn upload-btn">🖼️ Upload ảnh</button>
-        </div>
-        
-        <input type="file" id="fileInput" accept="image/*" style="display: none;">
-      </div>
-
-      <div class="gallery-section">
-        <h2>📱 Ảnh từ mọi người</h2>
-        <div id="gallery" class="gallery-grid">
-          <div class="loading">⏳ Đang tải...</div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <!-- Modal camera riêng biệt -->
-  <div id="cameraModal" class="camera-modal hidden">
-    <div class="camera-container">
-      <div class="camera-header">
-        <button id="closeModalBtn" class="modal-close-btn">✕</button>
-        <button id="switchCamBtn" class="switch-cam-modal">🔄 Đổi cam</button>
-      </div>
-      <div class="camera-view">
-        <video id="cameraVideo" autoplay playsinline></video>
-      </div>
-      <div class="camera-footer">
-        <button id="shootBtn" class="shoot-btn">
-          <div class="shoot-inner"></div>
-        </button>
+      <div class="url-box">
+        <span id="urlText">Đang tải...</span>
+        <button id="copyBtn">📋 Copy link</button>
       </div>
     </div>
-    <canvas id="photoCanvas" style="display: none;"></canvas>
+
+    <div class="action-bar">
+      <button id="openCameraBtn" class="btn-camera">📷 Mở Camera</button>
+      <button id="uploadImageBtn" class="btn-upload">🖼️ Upload ảnh</button>
+    </div>
+
+    <div class="gallery">
+      <h3>📸 Ảnh đã chia sẻ</h3>
+      <div id="imageGrid" class="image-grid">
+        <div class="loading">Đang tải...</div>
+      </div>
+    </div>
   </div>
+
+  <!-- MÀN HÌNH CAMERA (POPUP) -->
+  <div id="cameraScreen" class="camera-screen hidden">
+    <div class="camera-top-bar">
+      <button id="closeCamera" class="close-cam">✕</button>
+      <button id="switchCamera" class="switch-cam">🔄</button>
+    </div>
+    
+    <div class="camera-preview-area">
+      <video id="cameraPreview" autoplay playsinline></video>
+    </div>
+    
+    <div class="camera-bottom-bar">
+      <button id="takePhotoBtn" class="take-photo-btn">
+        <div class="inner-circle"></div>
+      </button>
+    </div>
+  </div>
+
+  <input type="file" id="fileUpload" accept="image/*" style="display: none;">
+  <canvas id="hiddenCanvas" style="display: none;"></canvas>
 
   <script type="module" src="/main.js"></script>
 </body>

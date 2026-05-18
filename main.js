@@ -5,62 +5,52 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // DOM elements
-const cameraBtn = document.getElementById('cameraBtn');
-const uploadBtn = document.getElementById('uploadBtn');
-const fileInput = document.getElementById('fileInput');
-const gallery = document.getElementById('gallery');
-const cameraModal = document.getElementById('cameraModal');
-const cameraVideo = document.getElementById('cameraVideo');
-const shootBtn = document.getElementById('shootBtn');
-const closeModalBtn = document.getElementById('closeModalBtn');
-const switchCamBtn = document.getElementById('switchCamBtn');
-const photoCanvas = document.getElementById('photoCanvas');
-const copyUrlBtn = document.getElementById('copyUrlBtn');
-const urlDisplay = document.getElementById('urlDisplay');
+const openCameraBtn = document.getElementById('openCameraBtn');
+const uploadImageBtn = document.getElementById('uploadImageBtn');
+const fileUpload = document.getElementById('fileUpload');
+const imageGrid = document.getElementById('imageGrid');
+const cameraScreen = document.getElementById('cameraScreen');
+const cameraPreview = document.getElementById('cameraPreview');
+const takePhotoBtn = document.getElementById('takePhotoBtn');
+const closeCamera = document.getElementById('closeCamera');
+const switchCamera = document.getElementById('switchCamera');
+const hiddenCanvas = document.getElementById('hiddenCanvas');
+const copyBtn = document.getElementById('copyBtn');
+const urlText = document.getElementById('urlText');
 
 // State
 let currentStream = null;
-let currentFacingMode = 'environment'; // 'environment' = cam sau, 'user' = cam trước
+let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
 
 // Hiển thị URL
-urlDisplay.textContent = window.location.href;
-copyUrlBtn.addEventListener('click', () => {
+urlText.textContent = window.location.href;
+copyBtn.onclick = () => {
   navigator.clipboard.writeText(window.location.href);
-  alert('✅ Đã sao chép link! Gửi cho bạn bè để cùng xem.');
-});
+  alert('✅ Đã copy link!');
+};
 
-// ========== CAMERA FUNCTIONS ==========
+// ========== MỞ CAMERA ==========
 async function startCamera() {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+  
   try {
-    // Dừng stream cũ
-    if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
-    }
-    
     const constraints = {
       video: {
-        facingMode: { exact: currentFacingMode },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 }
+        facingMode: { exact: currentFacing },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
     };
     
-    try {
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (err) {
-      // Fallback nếu không có 4K
-      constraints.video.width = { ideal: 1920 };
-      constraints.video.height = { ideal: 1080 };
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    }
+    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    cameraPreview.srcObject = currentStream;
+    await cameraPreview.play();
     
-    cameraVideo.srcObject = currentStream;
-    await cameraVideo.play();
-    
-  } catch (error) {
-    console.error('Camera error:', error);
-    alert('❌ Không thể mở camera: ' + error.message);
-    closeCamera();
+  } catch (err) {
+    console.error('Camera error:', err);
+    alert('Không thể mở camera: ' + err.message);
   }
 }
 
@@ -69,70 +59,59 @@ function stopCamera() {
     currentStream.getTracks().forEach(track => track.stop());
     currentStream = null;
   }
-  cameraVideo.srcObject = null;
+  cameraPreview.srcObject = null;
 }
 
-function closeCamera() {
-  stopCamera();
-  cameraModal.classList.add('hidden');
-}
-
-async function switchCamera() {
-  currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-  await startCamera();
-}
-
-async function capturePhoto() {
-  if (!cameraVideo.videoWidth || !cameraVideo.videoHeight) {
-    alert('⚠️ Camera chưa sẵn sàng, vui lòng đợi 1 giây');
+// ========== CHỤP ẢNH ==========
+async function takePhoto() {
+  if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
+    alert('Camera chưa sẵn sàng');
     return;
   }
   
-  // Lấy kích thước thực tế của video
-  const videoWidth = cameraVideo.videoWidth;
-  const videoHeight = cameraVideo.videoHeight;
+  const width = cameraPreview.videoWidth;
+  const height = cameraPreview.videoHeight;
   
-  // Set canvas đúng kích thước
-  photoCanvas.width = videoWidth;
-  photoCanvas.height = videoHeight;
+  hiddenCanvas.width = width;
+  hiddenCanvas.height = height;
   
-  const context = photoCanvas.getContext('2d');
+  const ctx = hiddenCanvas.getContext('2d');
   
-  // IMPORTANT: Với cam trước, cần lật ảnh theo chiều NGANG
-  if (currentFacingMode === 'user') {
-    // Lật ngang ảnh
-    context.translate(videoWidth, 0);
-    context.scale(-1, 1);
-    context.drawImage(cameraVideo, 0, 0, videoWidth, videoHeight);
-    context.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+  // Vẽ ảnh từ camera
+  if (currentFacing === 'user') {
+    // Cam trước: lật ngang
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   } else {
-    context.drawImage(cameraVideo, 0, 0, videoWidth, videoHeight);
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
   }
   
   // Chuyển thành file
-  photoCanvas.toBlob(async (blob) => {
+  hiddenCanvas.toBlob(async (blob) => {
     if (!blob) {
-      alert('❌ Không thể chụp ảnh');
+      alert('Chụp ảnh thất bại');
       return;
     }
     
     const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-    await uploadFile(file, 'image');
-    closeCamera();
+    await uploadPhoto(file);
+    closeCameraScreen();
     
-  }, 'image/jpeg', 0.95);
+  }, 'image/jpeg', 0.92);
 }
 
-// ========== UPLOAD & DATABASE ==========
-async function uploadFile(file, type) {
+// ========== UPLOAD ẢNH LÊN SUPABASE ==========
+async function uploadPhoto(file) {
   try {
     const fileName = `${Date.now()}_${file.name}`;
-    const filePath = `media/${fileName}`;
+    const filePath = `photos/${fileName}`;
     
     // Upload lên Storage
     const { error: uploadError } = await supabase.storage
       .from('locket-media')
-      .upload(filePath, file, { cacheControl: '3600' });
+      .upload(filePath, file);
     
     if (uploadError) throw uploadError;
     
@@ -141,110 +120,112 @@ async function uploadFile(file, type) {
       .from('locket-media')
       .getPublicUrl(filePath);
     
-    // Lưu vào Database
+    // Lưu vào database
     const { error: dbError } = await supabase
       .from('media')
       .insert([{
         url: publicUrl,
-        type: type,
-        file_name: fileName,
+        type: 'image',
         created_at: new Date().toISOString()
       }]);
     
     if (dbError) throw dbError;
     
-    alert('✅ Upload thành công!');
-    await loadMedia();
+    alert('✅ Đã đăng ảnh!');
+    loadPhotos();
     
   } catch (error) {
     console.error('Upload error:', error);
-    alert('❌ Upload thất bại: ' + error.message);
+    alert('Upload thất bại: ' + error.message);
   }
 }
 
-async function loadMedia() {
+// ========== HIỂN THỊ ẢNH ==========
+async function loadPhotos() {
   try {
     const { data, error } = await supabase
       .from('media')
       .select('*')
+      .eq('type', 'image')
       .order('created_at', { ascending: false });
     
     if (error) throw error;
     
     if (!data || data.length === 0) {
-      gallery.innerHTML = '<div class="loading">📭 Chưa có ảnh nào. Hãy upload lên nhé!</div>';
+      imageGrid.innerHTML = '<div class="loading">📭 Chưa có ảnh nào</div>';
       return;
     }
     
-    // Chỉ lấy ảnh, bỏ qua video
-    const imagesOnly = data.filter(item => item.type === 'image' || item.type?.startsWith('image'));
-    
-    if (imagesOnly.length === 0) {
-      gallery.innerHTML = '<div class="loading">📭 Chưa có ảnh nào. Hãy upload lên nhé!</div>';
-      return;
-    }
-    
-    gallery.innerHTML = imagesOnly.map(item => `
-      <div class="gallery-item" onclick="window.open('${item.url}', '_blank')">
-        <img src="${item.url}" alt="Shared photo" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
-      </div>
+    imageGrid.innerHTML = data.map(item => `
+      <img src="${item.url}" alt="photo" onclick="window.open('${item.url}', '_blank')">
     `).join('');
     
   } catch (error) {
     console.error('Load error:', error);
-    gallery.innerHTML = `<div class="loading">❌ Lỗi: ${error.message}</div>`;
+    imageGrid.innerHTML = '<div class="loading">Lỗi tải ảnh</div>';
   }
 }
 
-// ========== REAL-TIME ==========
-function setupRealtime() {
-  supabase
-    .channel('media_changes')
-    .on('postgres_changes', 
-      { event: 'INSERT', schema: 'public', table: 'media' },
-      () => loadMedia()
-    )
-    .subscribe();
+// ========== ĐÓNG/MỞ CAMERA ==========
+function openCameraScreen() {
+  cameraScreen.classList.remove('hidden');
+  startCamera();
 }
 
-// ========== EVENT LISTENERS ==========
-cameraBtn.addEventListener('click', async () => {
-  cameraModal.classList.remove('hidden');
-  await startCamera();
-});
+function closeCameraScreen() {
+  cameraScreen.classList.add('hidden');
+  stopCamera();
+}
 
-shootBtn.addEventListener('click', capturePhoto);
-closeModalBtn.addEventListener('click', closeCamera);
-switchCamBtn.addEventListener('click', switchCamera);
+// ========== ĐỔI CAM TRƯỚC/SAU ==========
+function switchCameraMode() {
+  currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+  startCamera();
+}
 
-uploadBtn.addEventListener('click', () => fileInput.click());
+// ========== UPLOAD TỪ FILE ==========
+function uploadFromFile() {
+  fileUpload.click();
+}
 
-fileInput.addEventListener('change', async (e) => {
+fileUpload.onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
   if (!file.type.startsWith('image/')) {
-    alert('⚠️ Chỉ chấp nhận file ảnh (JPEG, PNG)');
-    fileInput.value = '';
+    alert('Chỉ chấp nhận file ảnh');
     return;
   }
   
-  await uploadFile(file, 'image');
-  fileInput.value = '';
-});
+  await uploadPhoto(file);
+  fileUpload.value = '';
+};
 
-// ========== KHỞI ĐỘNG ==========
-async function init() {
-  console.log('🚀 Locket Clone ready!');
-  await loadMedia();
-  setupRealtime();
+// ========== REAL-TIME ==========
+function setupRealtime() {
+  supabase
+    .channel('photos')
+    .on('postgres_changes', 
+      { event: 'INSERT', schema: 'public', table: 'media' },
+      () => loadPhotos()
+    )
+    .subscribe();
 }
 
-init();
+// ========== GÁN SỰ KIỆN ==========
+openCameraBtn.onclick = openCameraScreen;
+closeCamera.onclick = closeCameraScreen;
+takePhotoBtn.onclick = takePhoto;
+switchCamera.onclick = switchCameraMode;
+uploadImageBtn.onclick = uploadFromFile;
 
-// PWA
+// ========== KHỞI ĐỘNG ==========
+loadPhotos();
+setupRealtime();
+
+// Service Worker (PWA)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(console.log);
+  navigator.serviceWorker.register('/sw.js');
 }
 
 window.open = window.open.bind(window);
