@@ -1,0 +1,177 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.app-container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  min-height: 90vh;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.app-header h1 { font-size: 28px; margin-bottom: 8px; }
+.subtitle { font-size: 14px; opacity: 0.9; margin-bottom: 16px; }
+
+.share-url {
+  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#urlDisplay {
+  font-size: 12px;
+  background: rgba(0,0,0,0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  word-break: break-all;
+  flex: 1;
+  font-family: monospace;
+}
+
+.copy-btn {
+  background: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #667eea;
+  transition: transform 0.2s;
+}
+
+.copy-btn:active { transform: scale(0.95); }
+
+.content { padding: 20px; }
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+  color: white;
+}
+
+.action-btn:active { transform: translateY(2px); }
+
+.camera-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.upload-btn { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.video-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+
+.camera-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: black;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.camera-preview.hidden { display: none; }
+
+.camera-preview video {
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 16px;
+  background: black;
+}
+
+.camera-controls {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  justify-content: center;
+}
+
+.capture-btn, .record-btn, .stop-btn, .close-btn {
+  padding: 14px 24px;
+  border: none;
+  border-radius: 40px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.capture-btn { background: #ff4757; color: white; }
+.record-btn { background: #ff4757; color: white; }
+.stop-btn { background: #2ed573; color: white; }
+.close-btn { background: #747d8c; color: white; }
+
+.gallery-section h2 {
+  margin-bottom: 16px;
+  color: #333;
+  font-size: 20px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.gallery-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+
+.gallery-item img, .gallery-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+@media (max-width: 480px) {
+  .app-container { border-radius: 0; min-height: 100vh; }
+  .action-buttons { flex-direction: column; }
+  .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
