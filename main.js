@@ -48,6 +48,13 @@ async function startCamera() {
     cameraPreview.srcObject = currentStream;
     await cameraPreview.play();
     
+    // Thêm attribute để CSS xử lý lật video
+    if (currentFacing === 'user') {
+      cameraScreen.setAttribute('data-facing', 'user');
+    } else {
+      cameraScreen.setAttribute('data-facing', 'environment');
+    }
+    
   } catch (err) {
     console.error('Camera error:', err);
     alert('Không thể mở camera: ' + err.message);
@@ -79,11 +86,12 @@ async function takePhoto() {
   
   // Vẽ ảnh từ camera
   if (currentFacing === 'user') {
-    // Cam trước: lật ngang
+    // Cách 1: Lật ngang và giữ nguyên vị trí
+    ctx.save();
     ctx.translate(width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(cameraPreview, 0, 0, width, height);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.restore();
   } else {
     ctx.drawImage(cameraPreview, 0, 0, width, height);
   }
@@ -99,7 +107,7 @@ async function takePhoto() {
     await uploadPhoto(file);
     closeCameraScreen();
     
-  }, 'image/jpeg', 0.92);
+  }, 'image/jpeg', 0.95);
 }
 
 // ========== UPLOAD ẢNH LÊN SUPABASE ==========

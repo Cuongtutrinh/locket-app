@@ -173,8 +173,9 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   background: black;
-  transform: translateZ(0);
+  transform: scaleX(1);
   pointer-events: none;
   touch-action: none;
   user-select: none;
@@ -203,6 +204,10 @@ body {
   display: flex;
   justify-content: center;
   background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
+}
+
+.camera-screen[data-facing="user"] #cameraPreview {
+  transform: scaleX(-1);
 }
 
 .take-photo-btn {
