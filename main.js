@@ -9,21 +9,19 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // DOM elements
 const cameraBtn = document.getElementById('cameraBtn');
 const uploadBtn = document.getElementById('uploadBtn');
-const videoBtn = document.getElementById('videoBtn');
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
 const cameraPreview = document.getElementById('cameraPreview');
-const videoPreview = document.getElementById('videoRecorder');
 const videoElement = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const captureBtn = document.getElementById('captureBtn');
 const closeCameraBtn = document.getElementById('closeCameraBtn');
-const recorderVideo = document.getElementById('recorderVideo');
-const startRecordBtn = document.getElementById('startRecordBtn');
-const stopRecordBtn = document.getElementById('stopRecordBtn');
-const closeVideoBtn = document.getElementById('closeVideoBtn');
 const copyUrlBtn = document.getElementById('copyUrlBtn');
 const urlDisplay = document.getElementById('urlDisplay');
+
+// State
+let stream = null;
+let currentFacingMode = 'environment'; // 'environment' = cam sau, 'user' = cam trước
 
 // Hiển thị URL
 urlDisplay.textContent = window.location.href;
@@ -32,13 +30,124 @@ copyUrlBtn.addEventListener('click', () => {
   alert('✅ Đã sao chép link! Gửi cho bạn bè để cùng xem.');
 });
 
-// ========== 1. UPLOAD FILE LÊN SUPABASE STORAGE ==========
+// ========== 1. KHỞI TẠO CAMERA VỚI ĐỘ PHÂN GIẢI CAO NHẤT ==========
+async function initCamera() {
+  try {
+    // Dừng stream cũ nếu có
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Cấu hình độ phân giải tối đa (4K/HD)
+    const constraints = {
+      video: {
+        facingMode: { exact: currentFacingMode },
+        width: { ideal: 3840, min: 1920 },
+        height: { ideal: 2160, min: 1080 },
+        frameRate: { ideal: 60 }
+      }
+    };
+    
+    // Thử với độ phân giải cao nhất
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      // Nếu không hỗ trợ 4K, fallback xuống HD
+      console.warn('Không hỗ trợ 4K, fallback xuống HD:', err);
+      constraints.video.width = { ideal: 1920 };
+      constraints.video.height = { ideal: 1080 };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+    
+    // Gán stream vào video element
+    videoElement.srcObject = stream;
+    
+    // Đợi video load xong
+    await videoElement.play();
+    
+    // Fix lỗi lệch cam - áp dụng CSS transform
+    if (currentFacingMode === 'user') {
+      // Cam trước: lật ngang để đúng chiều
+      videoElement.style.transform = 'scaleX(-1)';
+    } else {
+      videoElement.style.transform = 'scaleX(1)';
+    }
+    
+    // Đảm bảo video chiếm toàn bộ khung hình
+    videoElement.style.objectFit = 'cover';
+    videoElement.style.width = '100%';
+    videoElement.style.height = 'auto';
+    
+    console.log('Camera initialized with mode:', currentFacingMode);
+    
+  } catch (error) {
+    console.error('Lỗi khởi tạo camera:', error);
+    alert('❌ Không thể truy cập camera: ' + error.message);
+    throw error;
+  }
+}
+
+// ========== 2. CHỤP ẢNH VỚI CHẤT LƯỢNG CAO NHẤT ==========
+async function capturePhoto() {
+  try {
+    // Đảm bảo video đã sẵn sàng
+    if (!videoElement.videoWidth || !videoElement.videoHeight) {
+      alert('❌ Camera chưa sẵn sàng. Vui lòng đợi 1 giây.');
+      return;
+    }
+    
+    // Set canvas đúng kích thước video
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    
+    const context = canvas.getContext('2d');
+    
+    // Vẽ ảnh từ video lên canvas
+    if (currentFacingMode === 'user') {
+      // Cam trước: cần lật ảnh lại khi vẽ
+      context.save();
+      context.scale(-1, 1);
+      context.drawImage(videoElement, -canvas.width, 0, canvas.width, canvas.height);
+      context.restore();
+    } else {
+      context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+    }
+    
+    // Chuyển canvas thành blob với chất lượng cao nhất
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.95);
+    });
+    
+    if (!blob) {
+      throw new Error('Không thể tạo ảnh');
+    }
+    
+    // Tạo file từ blob
+    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    
+    // Hiển thị preview trước khi upload
+    const previewUrl = URL.createObjectURL(blob);
+    console.log('Ảnh đã chụp, kích thước:', canvas.width, 'x', canvas.height);
+    
+    // Upload lên Supabase
+    await uploadFile(file, 'image');
+    
+    // Cleanup preview URL
+    URL.revokeObjectURL(previewUrl);
+    
+  } catch (error) {
+    console.error('Lỗi chụp ảnh:', error);
+    alert('❌ Chụp ảnh thất bại: ' + error.message);
+  }
+}
+
+// ========== 3. UPLOAD FILE LÊN SUPABASE ==========
 async function uploadFile(file, type) {
   try {
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `media/${fileName}`;
     
-    console.log('Đang upload:', fileName, type);
+    console.log('Đang upload:', fileName, type, 'Size:', file.size);
     
     // Upload lên Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -48,21 +157,14 @@ async function uploadFile(file, type) {
         upsert: false
       });
     
-    if (uploadError) {
-      console.error('Upload error detail:', uploadError);
-      throw uploadError;
-    }
-    
-    console.log('Upload thành công, lấy public URL...');
+    if (uploadError) throw uploadError;
     
     // Lấy public URL
     const { data: { publicUrl } } = supabase.storage
       .from('locket-media')
       .getPublicUrl(filePath);
     
-    console.log('Public URL:', publicUrl);
-    
-    // Lưu thông tin vào Database
+    // Lưu vào Database
     const { error: dbError } = await supabase
       .from('media')
       .insert([
@@ -74,15 +176,12 @@ async function uploadFile(file, type) {
         }
       ]);
     
-    if (dbError) {
-      console.error('DB error detail:', dbError);
-      throw dbError;
-    }
+    if (dbError) throw dbError;
     
-    console.log('Lưu database thành công');
-    alert('✅ Upload thành công! Đang tải lại ảnh...');
+    console.log('Upload thành công!');
+    alert('✅ Đã lưu ảnh! Mọi người có thể xem ngay.');
     
-    // Force reload gallery
+    // Reload gallery
     await loadMedia();
     
     return publicUrl;
@@ -93,93 +192,53 @@ async function uploadFile(file, type) {
   }
 }
 
-// ========== 2. LẤY DANH SÁCH MEDIA ==========
+// ========== 4. HIỂN THỊ GALLERY ==========
 async function loadMedia() {
   try {
-    console.log('Đang tải media từ Supabase...');
+    console.log('Đang tải media...');
     
-    // Lấy dữ liệu từ database
     const { data, error } = await supabase
       .from('media')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error('Lỗi load media:', error);
-      gallery.innerHTML = `<div class="loading">❌ Lỗi tải dữ liệu: ${error.message}</div>`;
-      return;
-    }
-    
-    console.log('Đã tải được', data?.length || 0, 'ảnh/video');
+    if (error) throw error;
     
     if (!data || data.length === 0) {
       gallery.innerHTML = '<div class="loading">📭 Chưa có ảnh/video nào. Hãy upload lên nhé!</div>';
       return;
     }
     
-    // Hiển thị gallery
-    renderGallery(data);
+    gallery.innerHTML = data.map(item => `
+      <div class="gallery-item" onclick="window.open('${item.url}', '_blank')">
+        ${item.type === 'video' 
+          ? `<video src="${item.url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>` 
+          : `<img src="${item.url}" alt="Shared media" loading="lazy" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='https://placehold.co/400x400/ff0000/white?text=Error'">`
+        }
+      </div>
+    `).join('');
     
   } catch (error) {
-    console.error('Load media error:', error);
+    console.error('Load error:', error);
     gallery.innerHTML = `<div class="loading">❌ Lỗi: ${error.message}</div>`;
   }
 }
 
-function renderGallery(mediaList) {
-  console.log('Render gallery với', mediaList.length, 'items');
-  
-  gallery.innerHTML = mediaList.map(item => `
-    <div class="gallery-item" onclick="window.open('${item.url}', '_blank')">
-      ${item.type === 'video' 
-        ? `<video src="${item.url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>` 
-        : `<img src="${item.url}" alt="Shared media" loading="lazy" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='https://placehold.co/400x400/ff0000/white?text=Error'">`
-      }
-    </div>
-  `).join('');
-}
-
-// ========== 3. SETUP REAL-TIME ==========
+// ========== 5. REAL-TIME ==========
 function setupRealtime() {
-  console.log('Đang thiết lập real-time...');
-  
-  const channel = supabase
+  supabase
     .channel('media_changes')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'media'
-      },
+    .on('postgres_changes', 
+      { event: 'INSERT', schema: 'public', table: 'media' },
       (payload) => {
-        console.log('Phát hiện ảnh mới!', payload.new);
-        // Thêm ảnh mới vào đầu gallery mà không cần reload toàn bộ
-        const currentItems = document.querySelectorAll('.gallery-item');
-        if (currentItems.length === 0) {
-          // Nếu gallery đang trống, reload toàn bộ
-          loadMedia();
-        } else {
-          // Thêm item mới vào đầu
-          const newItem = document.createElement('div');
-          newItem.className = 'gallery-item';
-          newItem.onclick = () => window.open(payload.new.url, '_blank');
-          newItem.innerHTML = payload.new.type === 'video'
-            ? `<video src="${payload.new.url}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
-            : `<img src="${payload.new.url}" alt="Shared media" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`;
-          
-          gallery.insertBefore(newItem, gallery.firstChild);
-        }
+        console.log('Có ảnh mới!');
+        loadMedia(); // Reload toàn bộ gallery
       }
     )
-    .subscribe((status) => {
-      console.log('Real-time status:', status);
-    });
-  
-  return channel;
+    .subscribe();
 }
 
-// ========== 4. XỬ LÝ UPLOAD TỪ FILE ==========
+// ========== 6. XỬ LÝ UPLOAD FILE ==========
 uploadBtn.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', async (e) => {
@@ -187,135 +246,58 @@ fileInput.addEventListener('change', async (e) => {
   if (!file) return;
   
   const type = file.type.startsWith('video/') ? 'video' : 'image';
-  alert(`📤 Đang upload ${type}... Vui lòng chờ`);
-  
   await uploadFile(file, type);
   fileInput.value = '';
 });
 
-// ========== 5. CAMERA (CHỤP ẢNH) ==========
-let stream = null;
-
+// ========== 7. MỞ CAMERA ==========
 cameraBtn.addEventListener('click', async () => {
   cameraPreview.classList.remove('hidden');
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: { ideal: 3840 }, height: { ideal: 2160 } }, 
-      audio: false 
-    });
-    videoElement.srcObject = stream;
-  } catch (err) {
-    alert('❌ Không thể truy cập camera: ' + err.message);
-    cameraPreview.classList.add('hidden');
-  }
+  await initCamera();
 });
 
+// ========== 8. CHỤP ẢNH ==========
 captureBtn.addEventListener('click', async () => {
-  // Đợi một chút để video ổn định
-  setTimeout(async () => {
-    const context = canvas.getContext('2d');
-    canvas.width = videoElement.videoWidth || 1920;
-    canvas.height = videoElement.videoHeight || 1080;
-    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-    
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        alert('❌ Không thể chụp ảnh');
-        return;
-      }
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      await uploadFile(file, 'image');
-      closeCamera();
-    }, 'image/jpeg', 0.95);
-  }, 100);
+  await capturePhoto();
 });
 
+// ========== 9. ĐÓNG CAMERA ==========
 function closeCamera() {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
     stream = null;
   }
   cameraPreview.classList.add('hidden');
+  videoElement.srcObject = null;
 }
 
 closeCameraBtn.addEventListener('click', closeCamera);
 
-// ========== 6. VIDEO RECORDER ==========
-let mediaRecorder = null;
-let recordedChunks = [];
-let currentVideoStream = null;
-
-videoBtn.addEventListener('click', async () => {
-  videoPreview.classList.remove('hidden');
-  try {
-    currentVideoStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: { ideal: 3840 }, height: { ideal: 2160 } }, 
-      audio: true 
-    });
-    recorderVideo.srcObject = currentVideoStream;
-  } catch (err) {
-    alert('❌ Không thể truy cập camera: ' + err.message);
-    videoPreview.classList.add('hidden');
-  }
-});
-
-startRecordBtn.addEventListener('click', () => {
-  recordedChunks = [];
-  mediaRecorder = new MediaRecorder(currentVideoStream, { mimeType: 'video/webm' });
-  
-  mediaRecorder.ondataavailable = (event) => {
-    if (event.data.size > 0) recordedChunks.push(event.data);
-  };
-  
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-    await uploadFile(file, 'video');
-    closeVideoRecorder();
-  };
-  
-  mediaRecorder.start();
-  startRecordBtn.classList.add('hidden');
-  stopRecordBtn.classList.remove('hidden');
-});
-
-stopRecordBtn.addEventListener('click', () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-  }
-});
-
-function closeVideoRecorder() {
-  if (currentVideoStream) {
-    currentVideoStream.getTracks().forEach(track => track.stop());
-    currentVideoStream = null;
-  }
-  videoPreview.classList.add('hidden');
-  startRecordBtn.classList.remove('hidden');
-  stopRecordBtn.classList.add('hidden');
-}
-
-closeVideoBtn.addEventListener('click', closeVideoRecorder);
-
-// ========== 7. KIỂM TRA KẾT NỐI SUPABASE ==========
-async function testSupabaseConnection() {
-  console.log('Testing Supabase connection...');
-  console.log('URL:', supabaseUrl);
-  
-  // Test đọc
-  const { data, error } = await supabase.from('media').select('count');
-  if (error) {
-    console.error('Connection error:', error);
-    alert('❌ Lỗi kết nối Supabase. Kiểm tra lại environment variables!');
-  } else {
-    console.log('✅ Kết nối Supabase thành công!');
+// ========== 10. CHUYỂN ĐỔI CAM SAU/TRƯỚC ==========
+// Thêm nút chuyển đổi camera (tạo thêm trong HTML nếu cần)
+function addSwitchCameraButton() {
+  const cameraControls = document.querySelector('.camera-controls');
+  if (cameraControls && !document.getElementById('switchCameraBtn')) {
+    const switchBtn = document.createElement('button');
+    switchBtn.id = 'switchCameraBtn';
+    switchBtn.textContent = '🔄 Đổi cam';
+    switchBtn.className = 'switch-cam-btn';
+    switchBtn.style.cssText = 'background: #4a90e2; color: white; padding: 14px 24px; border: none; border-radius: 40px; font-size: 18px; cursor: pointer;';
+    switchBtn.onclick = async () => {
+      // Chuyển đổi giữa cam trước và cam sau
+      currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      await initCamera();
+    };
+    cameraControls.appendChild(switchBtn);
   }
 }
 
-// ========== 8. KHỞI ĐỘNG APP ==========
+// Gọi hàm này khi DOM load xong
+setTimeout(addSwitchCameraButton, 100);
+
+// ========== 11. KHỞI ĐỘNG APP ==========
 async function init() {
-  console.log('🚀 Khởi động app...');
-  await testSupabaseConnection();
+  console.log('🚀 Khởi động Locket Clone...');
   await loadMedia();
   setupRealtime();
 }
