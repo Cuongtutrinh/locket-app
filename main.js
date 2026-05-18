@@ -25,15 +25,37 @@ let backCameraDevice = null;
 let isUsingFrontCamera = false;
 
 async function findCameras() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const videoDevices = devices.filter(device => device.kind === 'videoinput');
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-  // Heuristics to find the main front and back cameras
-  backCameraDevice = videoDevices.find(device => /back|rear|environment/i.test(device.label)) || videoDevices.find(d => !/front/i.test(d.label)) || videoDevices[0];
-  frontCameraDevice = videoDevices.find(device => /front|user|selfie/i.test(device.label)) || videoDevices.find(d => d.deviceId !== backCameraDevice?.deviceId);
+    if (videoDevices.length < 2) {
+      // Not enough cameras to switch, use what's available
+      backCameraDevice = videoDevices[0];
+      frontCameraDevice = null;
+      return;
+    }
 
-  // Set initial camera
-  isUsingFrontCamera = false; // Default to back camera
+    // Heuristics based on labels first
+    let potentialBack = videoDevices.filter(d => /back|rear|environment/i.test(d.label));
+    let potentialFront = videoDevices.filter(d => /front|user|selfie/i.test(d.label));
+
+    // Refine if labels are not clear
+    if (potentialBack.length === 0 && potentialFront.length === 0) {
+        // If no labels, assume the first is back and the last is front
+        backCameraDevice = videoDevices[0];
+        frontCameraDevice = videoDevices[videoDevices.length - 1];
+    } else {
+        backCameraDevice = potentialBack[0] || videoDevices.find(d => !potentialFront.includes(d)) || videoDevices[0];
+        frontCameraDevice = potentialFront[0] || videoDevices.find(d => d.deviceId !== backCameraDevice.deviceId);
+    }
+
+  } catch (err) {
+    console.error("Could not enumerate devices:", err);
+  } finally {
+    // Set initial camera state
+    isUsingFrontCamera = false; // Default to back camera
+  }
 }
 
 // Hiển thị URL
