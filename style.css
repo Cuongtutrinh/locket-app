@@ -178,6 +178,25 @@ html, body {
 .btn-camera:active { transform: scale(0.95); opacity: 0.92; }
 .btn-upload:active  { transform: scale(0.95); opacity: 0.85; }
 
+/* Thêm vào cuối file style.css */
+.btn-camera.hide-camera {
+  display: none;
+}
+
+/* Khi nút camera bị ẩn, nút upload trở nên nổi bật hơn */
+.btn-camera.hide-camera + .btn-upload,
+.btn-camera:first-child:last-child {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  height: 54px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, var(--accent) 0%, #ff3366 100%);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(255, 87, 51, 0.4);
+}
+
 /* ══════════════════
    GALLERY
 ══════════════════ */
@@ -396,3 +415,4 @@ html, body {
   .camera-top-bar { padding-left: 14px; padding-right: 14px; }
   .take-photo-btn { width: 78px; height: 78px; }
 }
+
