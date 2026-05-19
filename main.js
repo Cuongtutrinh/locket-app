@@ -38,12 +38,6 @@ let currentFacing = 'environment';
 let pendingImageFile = null; // Ảnh tạm thời chờ gửi
 let selectedRating = 0;
 
-// Hiển thị URL
-urlText.textContent = window.location.href;
-copyBtn.onclick = () => {
-  navigator.clipboard.writeText(window.location.href);
-  alert('✅ Đã copy link!');
-};
 
 // ========== LẤY THÔNG TIN THỜI TIẾT & VỊ TRÍ ==========
 async function getLocationAndWeather() {
