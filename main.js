@@ -35,54 +35,119 @@ const confirmSendBtn = document.getElementById('confirmSendBtn');
 // State
 let currentStream = null;
 let currentFacing = 'environment';
-let pendingImageFile = null; // Ảnh tạm thời chờ gửi
+let pendingImageFile = null;
 let selectedRating = 0;
+let currentLocation = { lat: null, lng: null };
+let currentWeatherData = { temp: null, code: null, condition: 'Đang tải...' };
 
-
-// ========== LẤY THÔNG TIN THỜI TIẾT & VỊ TRÍ ==========
-async function getLocationAndWeather() {
-  // Lấy thời gian hiện tại
-  const now = new Date();
-  timeText.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  
-  // Lấy vị trí
-  if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords;
-      locationText.textContent = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
-      
-      // Gọi API thời tiết (OpenWeatherMap - cần API key)
-      try {
-        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-        const weatherData = await weatherRes.json();
-        const temp = weatherData.current_weather.temperature;
-        const weatherCode = weatherData.current_weather.weathercode;
-        
-        tempText.textContent = `${Math.round(temp)}°C`;
-        
-        // Mã thời tiết Open-Meteo
-        const weatherMap = {
-          0: '☀️ Nắng', 1: '🌤️ Ít mây', 2: '⛅ Có mây', 3: '☁️ Nhiều mây',
-          45: '🌫️ Sương mù', 51: '🌧️ Mưa nhẹ', 61: '🌧️ Mưa', 71: '❄️ Tuyết'
-        };
-        weatherText.textContent = weatherMap[weatherCode] || '🌡️ Bình thường';
-      } catch (err) {
-        weatherText.textContent = '🌡️ Không xác định';
-        tempText.textContent = '--°C';
-      }
-    }, () => {
-      locationText.textContent = 'Không xác định';
-      weatherText.textContent = '--';
-      tempText.textContent = '--°C';
+// ========== LẤY VỊ TRÍ ==========
+function getLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject('Trình duyệt không hỗ trợ định vị');
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     });
-  } else {
-    locationText.textContent = 'Không hỗ trợ';
+  });
+}
+
+// ========== LẤY THỜI TIẾT ==========
+async function fetchWeather(lat, lon) {
+  try {
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const data = await response.json();
+    return {
+      temp: Math.round(data.current_weather.temperature),
+      code: data.current_weather.weathercode
+    };
+  } catch (error) {
+    console.error('Lỗi lấy thời tiết:', error);
+    return null;
+  }
+}
+
+// Hàm chuyển mã thời tiết thành text + icon
+function getWeatherCondition(code) {
+  const weatherMap = {
+    0: { icon: '☀️', text: 'Nắng' },
+    1: { icon: '🌤️', text: 'Ít mây' },
+    2: { icon: '⛅', text: 'Có mây' },
+    3: { icon: '☁️', text: 'Nhiều mây' },
+    45: { icon: '🌫️', text: 'Sương mù' },
+    48: { icon: '🌫️', text: 'Sương mù' },
+    51: { icon: '🌧️', text: 'Mưa nhẹ' },
+    53: { icon: '🌧️', text: 'Mưa' },
+    55: { icon: '🌧️', text: 'Mưa lớn' },
+    61: { icon: '🌧️', text: 'Mưa' },
+    63: { icon: '🌧️', text: 'Mưa vừa' },
+    65: { icon: '🌧️', text: 'Mưa lớn' },
+    71: { icon: '❄️', text: 'Tuyết' },
+    73: { icon: '❄️', text: 'Tuyết vừa' },
+    75: { icon: '❄️', text: 'Tuyết lớn' },
+    80: { icon: '🌧️', text: 'Mưa rào' },
+    95: { icon: '⛈️', text: 'Giông bão' }
+  };
+  return weatherMap[code] || { icon: '🌡️', text: 'Bình thường' };
+}
+
+// ========== CẬP NHẬT THÔNG TIN THỜI TIẾT & VỊ TRÍ ==========
+async function updateWeatherAndLocation() {
+  // Thời gian hiện tại - có thể chọn lại
+  const now = new Date();
+  const currentTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  timeText.textContent = currentTime;
+  timeText.style.cursor = 'pointer';
+  timeText.title = 'Click để cập nhật thời gian hiện tại';
+  
+  // Cho phép click để refresh thời gian
+  timeText.onclick = () => {
+    const newTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    timeText.textContent = newTime;
+  };
+  
+  try {
+    const position = await getLocation();
+    currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+    
+    // Hiển thị vị trí dạng đẹp hơn
+    locationText.innerHTML = `📍 ${currentLocation.lat.toFixed(3)}°, ${currentLocation.lng.toFixed(3)}°`;
+    locationText.style.cursor = 'pointer';
+    locationText.title = 'Click để lấy lại vị trí';
+    locationText.onclick = () => {
+      updateWeatherAndLocation();
+    };
+    
+    const weather = await fetchWeather(currentLocation.lat, currentLocation.lng);
+    if (weather) {
+      currentWeatherData = weather;
+      const condition = getWeatherCondition(weather.code);
+      weatherText.innerHTML = `${condition.icon} ${condition.text}`;
+      tempText.innerHTML = `🌡️ ${weather.temp}°C`;
+      
+      // Cho phép click để refresh thời tiết
+      weatherText.style.cursor = 'pointer';
+      tempText.style.cursor = 'pointer';
+      weatherText.onclick = () => updateWeatherAndLocation();
+      tempText.onclick = () => updateWeatherAndLocation();
+    } else {
+      weatherText.innerHTML = '🌡️ Không xác định';
+      tempText.innerHTML = '🌡️ --°C';
+    }
+  } catch (error) {
+    console.error('Lỗi lấy vị trí:', error);
+    locationText.innerHTML = '📍 Không xác định (cần bật GPS)';
+    weatherText.innerHTML = '🌡️ Không xác định';
+    tempText.innerHTML = '🌡️ --°C';
   }
 }
 
 // ========== HIỂN THỊ MODAL CHỈNH SỬA ==========
 function showEditModal(imageBlobOrFile) {
-  // Tạo URL preview
   const url = URL.createObjectURL(imageBlobOrFile);
   previewImage.src = url;
   pendingImageFile = imageBlobOrFile;
@@ -90,12 +155,11 @@ function showEditModal(imageBlobOrFile) {
   // Reset form
   commentInput.value = '';
   selectedRating = 0;
-  starSpans.forEach(span => span.classList.remove('active'));
+  updateStarDisplay();
   
-  // Lấy thông tin hiện tại
-  getLocationAndWeather();
+  // Cập nhật thông tin
+  updateWeatherAndLocation();
   
-  // Hiển thị modal
   editModal.classList.remove('hidden');
 }
 
@@ -107,41 +171,51 @@ function hideEditModal() {
   pendingImageFile = null;
 }
 
-// ========== XỬ LÝ RATING STAR ==========
+// ========== XỬ LÝ RATING STAR (có thể bỏ chọn) ==========
+function updateStarDisplay() {
+  starSpans.forEach((span, idx) => {
+    if (idx < selectedRating) {
+      span.classList.add('active');
+      span.textContent = '★';
+    } else {
+      span.classList.remove('active');
+      span.textContent = '☆';
+    }
+  });
+}
+
 starSpans.forEach(star => {
-  star.addEventListener('click', () => {
-    selectedRating = parseInt(star.dataset.value);
-    starSpans.forEach((s, idx) => {
-      if (idx < selectedRating) {
-        s.classList.add('active');
-        s.textContent = '★';
-      } else {
-        s.classList.remove('active');
-        s.textContent = '☆';
-      }
-    });
+  star.addEventListener('click', (e) => {
+    const value = parseInt(star.dataset.value);
+    
+    // Nếu click vào sao đang được chọn thì bỏ chọn (set về 0)
+    if (selectedRating === value) {
+      selectedRating = 0;
+    } else {
+      selectedRating = value;
+    }
+    
+    updateStarDisplay();
+    e.stopPropagation();
   });
 });
 
-// ========== GỬI ẢNH LÊN SUPABASE (kèm metadata) ==========
+// ========== GỬI ẢNH LÊN SUPABASE ==========
 async function uploadPhotoWithMetadata(file, metadata) {
   try {
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `photos/${fileName}`;
     
-    // Upload lên Storage
     const { error: uploadError } = await supabase.storage
       .from('locket-media')
       .upload(filePath, file);
     
     if (uploadError) throw uploadError;
     
-    // Lấy public URL
     const { data: { publicUrl } } = supabase.storage
       .from('locket-media')
       .getPublicUrl(filePath);
     
-    // Lưu vào database với đầy đủ metadata
     const { error: dbError } = await supabase
       .from('media')
       .insert([{
@@ -174,9 +248,9 @@ confirmSendBtn.onclick = async () => {
   const metadata = {
     comment: commentInput.value,
     rating: selectedRating,
-    weather: weatherText.textContent,
-    temperature: tempText.textContent,
-    location: locationText.textContent,
+    weather: weatherText.innerHTML,
+    temperature: tempText.innerHTML,
+    location: locationText.innerHTML,
     time: timeText.textContent
   };
   
@@ -259,8 +333,6 @@ async function takePhoto() {
     }
     
     const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-    
-    // Đóng camera và hiện modal chỉnh sửa
     closeCameraScreen();
     showEditModal(file);
     
@@ -280,15 +352,15 @@ async function loadPhotos() {
     
     if (!data || data.length === 0) {
       imageGrid.innerHTML = '<div class="loading">📭 Chưa có ảnh nào</div>';
-      photoCount.textContent = '';
+      if (photoCount) photoCount.textContent = '';
       return;
     }
     
-    photoCount.textContent = `${data.length} ảnh`;
+    if (photoCount) photoCount.textContent = `${data.length} ảnh`;
     
     imageGrid.innerHTML = data.map(item => `
       <div class="image-item" onclick="window.open('${item.url}', '_blank')">
-        <img src="${item.url}" alt="photo">
+        <img src="${item.url}" alt="photo" loading="lazy">
         ${item.comment ? `<div class="image-comment">💬 ${item.comment.substring(0, 20)}</div>` : ''}
         ${item.rating > 0 ? `<div class="image-rating">${'★'.repeat(item.rating)}</div>` : ''}
       </div>
@@ -350,18 +422,18 @@ function setupRealtime() {
 }
 
 // ========== GÁN SỰ KIỆN ==========
-openCameraBtn.onclick = openCameraScreen;
-closeCamera.onclick = closeCameraScreen;
-takePhotoBtn.onclick = takePhoto;
-switchCamera.onclick = switchCameraMode;
-uploadImageBtn.onclick = uploadFromFile;
+if (openCameraBtn) openCameraBtn.onclick = openCameraScreen;
+if (closeCamera) closeCamera.onclick = closeCameraScreen;
+if (takePhotoBtn) takePhotoBtn.onclick = takePhoto;
+if (switchCamera) switchCamera.onclick = switchCameraMode;
+if (uploadImageBtn) uploadImageBtn.onclick = uploadFromFile;
 
 // ========== KHỞI ĐỘNG ==========
 loadPhotos();
 setupRealtime();
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.register('/sw.js').catch(console.log);
 }
 
 window.open = window.open.bind(window);

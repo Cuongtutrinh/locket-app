@@ -558,6 +558,27 @@ html, body {
   color: var(--text-2);
 }
 
+/* Cải thiện các chip info có thể click */
+.info-chip {
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.info-chip:active {
+  transform: scale(0.95);
+  background: var(--border);
+}
+
+/* Hiệu ứng cho stars khi hover */
+.stars span {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.stars span:active {
+  transform: scale(0.9);
+}
+
 .edit-modal-actions {
   display: flex;
   gap: 12px;
