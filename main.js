@@ -24,9 +24,6 @@ const editModal = document.getElementById('editModal');
 const previewImage = document.getElementById('previewImage');
 const commentInput = document.getElementById('commentInput');
 const starSpans = document.querySelectorAll('#starRating span');
-const weatherText = document.getElementById('weatherText');
-const timeText = document.getElementById('timeText');
-const locationText = document.getElementById('locationText');
 const closeEditModal = document.getElementById('closeEditModal');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const confirmSendBtn = document.getElementById('confirmSendBtn');
@@ -36,98 +33,6 @@ let currentStream = null;
 let currentFacing = 'environment';
 let pendingImageFile = null;
 let selectedRating = 0;
-let isUpdatingLocation = false; // Tránh gọi nhiều lần
-
-// Hàm chuyển mã thời tiết (dựa trên Open-Meteo)
-function getWeatherCondition(code) {
-    const weatherMap = {
-        0: { icon: '☀️', text: 'Nắng' }, 1: { icon: '🌤️', text: 'Ít mây' }, 2: { icon: '⛅', text: 'Có mây' },
-        3: { icon: '☁️', text: 'Nhiều mây' }, 45: { icon: '🌫️', text: 'Sương mù' }, 48: { icon: '🌫️', text: 'Sương mù' },
-        51: { icon: '🌧️', text: 'Mưa nhẹ' }, 53: { icon: '🌧️', text: 'Mưa' }, 55: { icon: '🌧️', text: 'Mưa lớn' },
-        61: { icon: '🌧️', text: 'Mưa' }, 63: { icon: '🌧️', text: 'Mưa vừa' }, 65: { icon: '🌧️', text: 'Mưa lớn' },
-        71: { icon: '❄️', text: 'Tuyết' }, 73: { icon: '❄️', text: 'Tuyết vừa' }, 75: { icon: '❄️', text: 'Tuyết lớn' },
-        80: { icon: '🌧️', text: 'Mưa rào' }, 95: { icon: '⛈️', text: 'Giông bão' }
-    };
-    return weatherMap[code] || { icon: '🌡️', text: 'Bình thường' };
-}
-
-// ========== LẤY VỊ TRÍ VÀ THỜI TIẾT (CÓ YÊU CẦU QUYỀN) ==========
-async function askForLocationAndWeather() {
-    // Hiển thị trạng thái đang tải
-    locationText.innerHTML = '📍 Đang yêu cầu quyền vị trí...';
-    weatherText.innerHTML = '☁️ Đang tải thời tiết...';
-    
-    // 1. Kiểm tra trình duyệt có hỗ trợ Geolocation không
-    if (!navigator.geolocation) {
-        locationText.innerHTML = '📍 Trình duyệt không hỗ trợ GPS';
-        weatherText.innerHTML = '☁️ Không thể lấy thời tiết';
-        return;
-    }
-
-    // 2. Yêu cầu quyền truy cập vị trí (sẽ hiện popup như camera)
-    navigator.geolocation.getCurrentPosition(
-        async (position) => { // Thành công
-            const { latitude, longitude } = position.coords;
-            const latFixed = latitude.toFixed(4);
-            const lngFixed = longitude.toFixed(4);
-            locationText.innerHTML = `📍 ${latFixed}°, ${lngFixed}°`;
-            locationText.style.cursor = 'pointer';
-            locationText.title = 'Nhấn để cập nhật lại thời tiết';
-
-            // 3. Gọi API thời tiết
-            try {
-                weatherText.innerHTML = '☁️ Đang lấy dữ liệu thời tiết...';
-                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-                const data = await response.json();
-                
-                if (data && data.current_weather) {
-                    const condition = getWeatherCondition(data.current_weather.weathercode);
-                    weatherText.innerHTML = `${condition.icon} ${condition.text}`;
-                } else {
-                    weatherText.innerHTML = '☁️ Không có dữ liệu';
-                }
-                // Cho phép click để refresh
-                locationText.onclick = () => askForLocationAndWeather();
-                weatherText.onclick = () => askForLocationAndWeather();
-            } catch (error) {
-                console.error("Lỗi API thời tiết:", error);
-                weatherText.innerHTML = '☁️ Lỗi kết nối thời tiết';
-            }
-        },
-        (error) => { // Thất bại (user từ chối hoặc lỗi)
-            console.error("Lỗi vị trí:", error);
-            let errorMsg = '';
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    errorMsg = '📍 Bị từ chối. Vui lòng bật GPS và tải lại trang.';
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    errorMsg = '📍 Không xác định được vị trí.';
-                    break;
-                case error.TIMEOUT:
-                    errorMsg = '📍 Quá thời gian chờ. Thử lại sau.';
-                    break;
-                default:
-                    errorMsg = '📍 Không thể lấy vị trí.';
-            }
-            locationText.innerHTML = errorMsg;
-            weatherText.innerHTML = '☁️ Cần vị trí để hiển thị thời tiết';
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 } // Options
-    );
-}
-
-// Cập nhật thời gian hiện tại
-function updateCurrentTime() {
-    const now = new Date();
-    const currentTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    if (timeText) {
-        timeText.textContent = currentTime;
-        timeText.style.cursor = 'pointer';
-        timeText.title = 'Nhấn để cập nhật thời gian hiện tại';
-        timeText.onclick = () => updateCurrentTime();
-    }
-}
 
 // ========== HIỂN THỊ MODAL CHỈNH SỬA ==========
 function showEditModal(imageBlobOrFile) {
@@ -139,12 +44,6 @@ function showEditModal(imageBlobOrFile) {
     commentInput.value = '';
     selectedRating = 0;
     updateStarDisplay();
-    
-    // Cập nhật thời gian hiện tại
-    updateCurrentTime();
-    
-    // Luôn hỏi quyền vị trí và lấy thời tiết MỖI KHI mở modal
-    askForLocationAndWeather();
     
     editModal.classList.remove('hidden');
 }
@@ -202,9 +101,6 @@ async function uploadPhotoWithMetadata(file, metadata) {
                 type: 'image',
                 comment: metadata.comment || '',
                 rating: metadata.rating || 0,
-                weather: metadata.weather || '',
-                location: metadata.location || '',
-                time: metadata.time || '',
                 created_at: new Date().toISOString()
             }]);
         
@@ -225,10 +121,7 @@ confirmSendBtn.onclick = async () => {
     
     const metadata = {
         comment: commentInput.value,
-        rating: selectedRating,
-        weather: weatherText ? weatherText.innerHTML : '',
-        location: locationText ? locationText.innerHTML : '',
-        time: timeText ? timeText.textContent : ''
+        rating: selectedRating
     };
     
     await uploadPhotoWithMetadata(pendingImageFile, metadata);
