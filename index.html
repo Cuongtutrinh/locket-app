@@ -86,6 +86,61 @@
   <input type="file" id="fileUpload" accept="image/*" style="display:none">
   <canvas id="hiddenCanvas" style="display:none"></canvas>
 
+  <!-- Modal chỉnh sửa ảnh trước khi gửi -->
+  <div id="editModal" class="edit-modal hidden">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>Gửi đến...</h3>
+        <button id="closeEditModal" class="close-edit-modal">✕</button>
+      </div>
+
+      <!-- Ảnh preview -->
+      <div class="edit-image-preview">
+        <img id="previewImage" alt="Preview">
+      </div>
+
+      <!-- Comment input -->
+      <div class="comment-section">
+        <input type="text" id="commentInput" class="comment-input" placeholder="Viết chú thích...">
+      </div>
+
+      <!-- Rating stars -->
+      <div class="rating-section">
+        <span class="rating-label">★★★★★</span>
+        <div class="stars-container">
+          <div class="stars" id="starRating">
+            <span data-value="1">☆</span>
+            <span data-value="2">☆</span>
+            <span data-value="3">☆</span>
+            <span data-value="4">☆</span>
+            <span data-value="5">☆</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weather, temperature, time, location -->
+      <div class="info-grid">
+        <div class="info-chip" id="weatherChip">
+          <span>☁️</span> <span id="weatherText">Đang tải...</span>
+        </div>
+        <div class="info-chip" id="tempChip">
+          <span>🌡️</span> <span id="tempText">--°C</span>
+        </div>
+        <div class="info-chip" id="timeChip">
+          <span>🕐</span> <span id="timeText">--:--</span>
+        </div>
+        <div class="info-chip" id="locationChip">
+          <span>📍</span> <span id="locationText">Đang lấy...</span>
+        </div>
+      </div>
+
+      <div class="edit-modal-actions">
+        <button id="cancelEditBtn" class="cancel-edit-btn">Hủy</button>
+        <button id="confirmSendBtn" class="confirm-send-btn">Gửi ✨</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/main.js"></script>
 </body>
 </html>

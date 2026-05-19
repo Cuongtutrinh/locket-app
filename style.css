@@ -408,6 +408,223 @@ html, body {
 }
 
 /* ══════════════════
+   EDIT MODAL
+══════════════════ */
+.edit-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.edit-modal.hidden {
+  display: none;
+}
+
+.edit-modal-content {
+  background: var(--bg-card);
+  width: 100%;
+  max-width: 500px;
+  border-radius: 28px 28px 0 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.edit-modal-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.close-edit-modal {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-muted);
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.edit-image-preview {
+  padding: 16px 20px;
+  background: var(--bg-muted);
+}
+
+.edit-image-preview img {
+  width: 100%;
+  border-radius: 16px;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.comment-section {
+  padding: 16px 20px 8px;
+}
+
+.comment-input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 24px;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-family: var(--font);
+  background: var(--bg-card);
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.rating-section {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rating-label {
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #ffc107;
+}
+
+.stars-container {
+  display: flex;
+  gap: 4px;
+}
+
+.stars {
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.stars span {
+  font-size: 28px;
+  color: #ddd;
+  transition: color 0.1s;
+}
+
+.stars span.active {
+  color: #ffc107;
+}
+
+.stars span:hover {
+  transform: scale(1.1);
+}
+
+.info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 20px;
+}
+
+.info-chip {
+  background: var(--bg-muted);
+  padding: 8px 14px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.edit-modal-actions {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.cancel-edit-btn, .confirm-send-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.cancel-edit-btn {
+  background: var(--bg-muted);
+  color: var(--text-2);
+}
+
+.confirm-send-btn {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 87, 51, 0.3);
+}
+
+.confirm-send-btn:active, .cancel-edit-btn:active {
+  transform: scale(0.97);
+}
+
+.image-item {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.image-comment {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  color: white;
+  font-size: 10px;
+  padding: 20px 6px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-rating {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.6);
+  color: #ffc107;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 20px;
+}
+
+/* ══════════════════
    RESPONSIVE
 ══════════════════ */
 @media (max-width: 500px) {

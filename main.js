@@ -9,6 +9,7 @@ const openCameraBtn = document.getElementById('openCameraBtn');
 const uploadImageBtn = document.getElementById('uploadImageBtn');
 const fileUpload = document.getElementById('fileUpload');
 const imageGrid = document.getElementById('imageGrid');
+const photoCount = document.getElementById('photoCount');
 const cameraScreen = document.getElementById('cameraScreen');
 const cameraPreview = document.getElementById('cameraPreview');
 const takePhotoBtn = document.getElementById('takePhotoBtn');
@@ -18,115 +19,118 @@ const hiddenCanvas = document.getElementById('hiddenCanvas');
 const copyBtn = document.getElementById('copyBtn');
 const urlText = document.getElementById('urlText');
 
+// Edit modal elements
+const editModal = document.getElementById('editModal');
+const previewImage = document.getElementById('previewImage');
+const commentInput = document.getElementById('commentInput');
+const starSpans = document.querySelectorAll('#starRating span');
+const weatherText = document.getElementById('weatherText');
+const tempText = document.getElementById('tempText');
+const timeText = document.getElementById('timeText');
+const locationText = document.getElementById('locationText');
+const closeEditModal = document.getElementById('closeEditModal');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const confirmSendBtn = document.getElementById('confirmSendBtn');
+
 // State
 let currentStream = null;
-let currentFacing = 'environment'; // 'environment' (sau) hoặc 'user' (trước)
+let currentFacing = 'environment';
+let pendingImageFile = null; // Ảnh tạm thời chờ gửi
+let selectedRating = 0;
 
+// Hiển thị URL
+urlText.textContent = window.location.href;
+copyBtn.onclick = () => {
+  navigator.clipboard.writeText(window.location.href);
+  alert('✅ Đã copy link!');
+};
 
-// ========== MỞ CAMERA ==========
-async function startCamera() {
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
-  }
+// ========== LẤY THÔNG TIN THỜI TIẾT & VỊ TRÍ ==========
+async function getLocationAndWeather() {
+  // Lấy thời gian hiện tại
+  const now = new Date();
+  timeText.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   
-  try {
-    // Cấu hình độ phân giải CAO NHẤT có thể
-    const constraints = {
-      video: {
-        facingMode: { exact: currentFacing },
-        width: { ideal: 3840, min: 1920 },  // 4K hoặc ít nhất Full HD
-        height: { ideal: 2160, min: 1080 },
-        frameRate: { ideal: 30 }
+  // Lấy vị trí
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      locationText.textContent = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+      
+      // Gọi API thời tiết (OpenWeatherMap - cần API key)
+      try {
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+        const weatherData = await weatherRes.json();
+        const temp = weatherData.current_weather.temperature;
+        const weatherCode = weatherData.current_weather.weathercode;
+        
+        tempText.textContent = `${Math.round(temp)}°C`;
+        
+        // Mã thời tiết Open-Meteo
+        const weatherMap = {
+          0: '☀️ Nắng', 1: '🌤️ Ít mây', 2: '⛅ Có mây', 3: '☁️ Nhiều mây',
+          45: '🌫️ Sương mù', 51: '🌧️ Mưa nhẹ', 61: '🌧️ Mưa', 71: '❄️ Tuyết'
+        };
+        weatherText.textContent = weatherMap[weatherCode] || '🌡️ Bình thường';
+      } catch (err) {
+        weatherText.textContent = '🌡️ Không xác định';
+        tempText.textContent = '--°C';
       }
-    };
-    
-    // Thử với độ phân giải cao nhất
-    try {
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (err) {
-      // Nếu không hỗ trợ 4K, fallback xuống Full HD
-      console.warn('Không hỗ trợ 4K, fallback xuống Full HD');
-      constraints.video.width = { ideal: 1920, min: 1280 };
-      constraints.video.height = { ideal: 1080, min: 720 };
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    }
-    
-    cameraPreview.srcObject = currentStream;
-    await cameraPreview.play();
-    
-    // Log độ phân giải thực tế
-    console.log('Video track settings:', currentStream.getVideoTracks()[0].getSettings());
-    console.log(`Độ phân giải: ${cameraPreview.videoWidth} x ${cameraPreview.videoHeight}`);
-    
-    // Thêm attribute để CSS xử lý lật video
-    if (currentFacing === 'user') {
-      cameraScreen.setAttribute('data-facing', 'user');
-    } else {
-      cameraScreen.setAttribute('data-facing', 'environment');
-    }
-    
-  } catch (err) {
-    console.error('Camera error:', err);
-    alert('Không thể mở camera: ' + err.message);
-  }
-}
-
-function stopCamera() {
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
-    currentStream = null;
-  }
-  cameraPreview.srcObject = null;
-}
-
-// ========== CHỤP ẢNH ==========
-async function takePhoto() {
-  if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
-    alert('Camera chưa sẵn sàng');
-    return;
-  }
-  
-  // Lấy kích thước THỰC TẾ của video (sẽ là HD/4K)
-  const width = cameraPreview.videoWidth;
-  const height = cameraPreview.videoHeight;
-  
-  console.log(`Chụp ảnh với độ phân giải: ${width} x ${height}`);
-  
-  hiddenCanvas.width = width;
-  hiddenCanvas.height = height;
-  
-  const ctx = hiddenCanvas.getContext('2d');
-  
-  // Vẽ ảnh từ camera với chất lượng cao nhất
-  if (currentFacing === 'user') {
-    // Cam trước: lật ngang
-    ctx.save();
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(cameraPreview, 0, 0, width, height);
-    ctx.restore();
+    }, () => {
+      locationText.textContent = 'Không xác định';
+      weatherText.textContent = '--';
+      tempText.textContent = '--°C';
+    });
   } else {
-    ctx.drawImage(cameraPreview, 0, 0, width, height);
+    locationText.textContent = 'Không hỗ trợ';
   }
-  
-  // Chuyển thành file với chất lượng tối đa (1.0 = 100%)
-  hiddenCanvas.toBlob(async (blob) => {
-    if (!blob) {
-      alert('Chụp ảnh thất bại');
-      return;
-    }
-    
-    console.log(`Kích thước ảnh: ${(blob.size / 1024).toFixed(2)} KB`);
-    
-    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-    await uploadPhoto(file);
-    closeCameraScreen();
-    
-  }, 'image/jpeg', 1.0); // Chất lượng tối đa
 }
 
-// ========== UPLOAD ẢNH LÊN SUPABASE ==========
-async function uploadPhoto(file) {
+// ========== HIỂN THỊ MODAL CHỈNH SỬA ==========
+function showEditModal(imageBlobOrFile) {
+  // Tạo URL preview
+  const url = URL.createObjectURL(imageBlobOrFile);
+  previewImage.src = url;
+  pendingImageFile = imageBlobOrFile;
+  
+  // Reset form
+  commentInput.value = '';
+  selectedRating = 0;
+  starSpans.forEach(span => span.classList.remove('active'));
+  
+  // Lấy thông tin hiện tại
+  getLocationAndWeather();
+  
+  // Hiển thị modal
+  editModal.classList.remove('hidden');
+}
+
+function hideEditModal() {
+  editModal.classList.add('hidden');
+  if (previewImage.src) {
+    URL.revokeObjectURL(previewImage.src);
+  }
+  pendingImageFile = null;
+}
+
+// ========== XỬ LÝ RATING STAR ==========
+starSpans.forEach(star => {
+  star.addEventListener('click', () => {
+    selectedRating = parseInt(star.dataset.value);
+    starSpans.forEach((s, idx) => {
+      if (idx < selectedRating) {
+        s.classList.add('active');
+        s.textContent = '★';
+      } else {
+        s.classList.remove('active');
+        s.textContent = '☆';
+      }
+    });
+  });
+});
+
+// ========== GỬI ẢNH LÊN SUPABASE (kèm metadata) ==========
+async function uploadPhotoWithMetadata(file, metadata) {
   try {
     const fileName = `${Date.now()}_${file.name}`;
     const filePath = `photos/${fileName}`;
@@ -143,12 +147,18 @@ async function uploadPhoto(file) {
       .from('locket-media')
       .getPublicUrl(filePath);
     
-    // Lưu vào database
+    // Lưu vào database với đầy đủ metadata
     const { error: dbError } = await supabase
       .from('media')
       .insert([{
         url: publicUrl,
         type: 'image',
+        comment: metadata.comment || '',
+        rating: metadata.rating || 0,
+        weather: metadata.weather || '',
+        temperature: metadata.temperature || '',
+        location: metadata.location || '',
+        time: metadata.time || '',
         created_at: new Date().toISOString()
       }]);
     
@@ -161,6 +171,106 @@ async function uploadPhoto(file) {
     console.error('Upload error:', error);
     alert('Upload thất bại: ' + error.message);
   }
+}
+
+// ========== XỬ LÝ KHI BẤM GỬI ==========
+confirmSendBtn.onclick = async () => {
+  if (!pendingImageFile) return;
+  
+  const metadata = {
+    comment: commentInput.value,
+    rating: selectedRating,
+    weather: weatherText.textContent,
+    temperature: tempText.textContent,
+    location: locationText.textContent,
+    time: timeText.textContent
+  };
+  
+  await uploadPhotoWithMetadata(pendingImageFile, metadata);
+  hideEditModal();
+};
+
+cancelEditBtn.onclick = hideEditModal;
+closeEditModal.onclick = hideEditModal;
+
+// ========== MỞ CAMERA ==========
+async function startCamera() {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+  
+  try {
+    const constraints = {
+      video: {
+        facingMode: { exact: currentFacing },
+        width: { ideal: 3840, min: 1920 },
+        height: { ideal: 2160, min: 1080 },
+        frameRate: { ideal: 30 }
+      }
+    };
+    
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      console.warn('Fallback HD');
+      constraints.video.width = { ideal: 1920, min: 1280 };
+      constraints.video.height = { ideal: 1080, min: 720 };
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+    
+    cameraPreview.srcObject = currentStream;
+    await cameraPreview.play();
+    
+    if (currentFacing === 'user') {
+      cameraScreen.setAttribute('data-facing', 'user');
+    } else {
+      cameraScreen.setAttribute('data-facing', 'environment');
+    }
+    
+  } catch (err) {
+    console.error('Camera error:', err);
+    alert('Không thể mở camera: ' + err.message);
+  }
+}
+
+// ========== CHỤP ẢNH ==========
+async function takePhoto() {
+  if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
+    alert('Camera chưa sẵn sàng');
+    return;
+  }
+  
+  const width = cameraPreview.videoWidth;
+  const height = cameraPreview.videoHeight;
+  
+  hiddenCanvas.width = width;
+  hiddenCanvas.height = height;
+  
+  const ctx = hiddenCanvas.getContext('2d');
+  
+  if (currentFacing === 'user') {
+    ctx.save();
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
+    ctx.restore();
+  } else {
+    ctx.drawImage(cameraPreview, 0, 0, width, height);
+  }
+  
+  hiddenCanvas.toBlob(async (blob) => {
+    if (!blob) {
+      alert('Chụp ảnh thất bại');
+      return;
+    }
+    
+    const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    
+    // Đóng camera và hiện modal chỉnh sửa
+    closeCameraScreen();
+    showEditModal(file);
+    
+  }, 'image/jpeg', 0.95);
 }
 
 // ========== HIỂN THỊ ẢNH ==========
@@ -176,34 +286,24 @@ async function loadPhotos() {
     
     if (!data || data.length === 0) {
       imageGrid.innerHTML = '<div class="loading">📭 Chưa có ảnh nào</div>';
+      photoCount.textContent = '';
       return;
     }
     
+    photoCount.textContent = `${data.length} ảnh`;
+    
     imageGrid.innerHTML = data.map(item => `
-      <img src="${item.url}" alt="photo" onclick="window.open('${item.url}', '_blank')">
+      <div class="image-item" onclick="window.open('${item.url}', '_blank')">
+        <img src="${item.url}" alt="photo">
+        ${item.comment ? `<div class="image-comment">💬 ${item.comment.substring(0, 20)}</div>` : ''}
+        ${item.rating > 0 ? `<div class="image-rating">${'★'.repeat(item.rating)}</div>` : ''}
+      </div>
     `).join('');
     
   } catch (error) {
     console.error('Load error:', error);
-    imageGrid.innerHTML = '<div class="loading">Lỗi tải ảnh</div>';
+    imageGrid.innerHTML = '<div class="loading">❌ Lỗi tải ảnh</div>';
   }
-}
-
-// ========== ĐÓNG/MỞ CAMERA ==========
-function openCameraScreen() {
-  cameraScreen.classList.remove('hidden');
-  startCamera();
-}
-
-function closeCameraScreen() {
-  cameraScreen.classList.add('hidden');
-  stopCamera();
-}
-
-// ========== ĐỔI CAM TRƯỚC/SAU ==========
-function switchCameraMode() {
-  currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
-  startCamera();
 }
 
 // ========== UPLOAD TỪ FILE ==========
@@ -220,9 +320,29 @@ fileUpload.onchange = async (e) => {
     return;
   }
   
-  await uploadPhoto(file);
+  showEditModal(file);
   fileUpload.value = '';
 };
+
+// ========== ĐÓNG/MỞ CAMERA ==========
+function openCameraScreen() {
+  cameraScreen.classList.remove('hidden');
+  startCamera();
+}
+
+function closeCameraScreen() {
+  cameraScreen.classList.add('hidden');
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+    currentStream = null;
+  }
+  cameraPreview.srcObject = null;
+}
+
+function switchCameraMode() {
+  currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+  startCamera();
+}
 
 // ========== REAL-TIME ==========
 function setupRealtime() {
@@ -235,31 +355,6 @@ function setupRealtime() {
     .subscribe();
 }
 
-// Kiểm tra camera hỗ trợ độ phân giải nào
-async function checkCameraCapabilities() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const videoDevices = devices.filter(device => device.kind === 'videoinput');
-  
-  console.log('Camera devices:', videoDevices);
-  
-  for (const device of videoDevices) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: device.deviceId }
-      });
-      const track = stream.getVideoTracks()[0];
-      const capabilities = track.getCapabilities();
-      console.log(`Camera ${device.label} capabilities:`, capabilities);
-      stream.getTracks().forEach(track => track.stop());
-    } catch (err) {
-      console.error('Error checking camera:', err);
-    }
-  }
-}
-
-// Gọi hàm này khi load để debug
-checkCameraCapabilities();
-
 // ========== GÁN SỰ KIỆN ==========
 openCameraBtn.onclick = openCameraScreen;
 closeCamera.onclick = closeCameraScreen;
@@ -271,7 +366,6 @@ uploadImageBtn.onclick = uploadFromFile;
 loadPhotos();
 setupRealtime();
 
-// Service Worker (PWA)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
