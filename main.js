@@ -28,11 +28,20 @@ const closeEditModal = document.getElementById('closeEditModal');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const confirmSendBtn = document.getElementById('confirmSendBtn');
 
+// Detail modal elements
+const detailModal = document.getElementById('detailModal');
+const detailImage = document.getElementById('detailImage');
+const detailRating = document.getElementById('detailRating');
+const detailComment = document.getElementById('detailComment');
+const detailTime = document.getElementById('detailTime');
+const closeDetailModal = document.getElementById('closeDetailModal');
+
 // ========== STATE ==========
 let currentStream = null;
 let currentFacing = 'environment';
 let pendingImageFile = null;
 let selectedRating = 0;
+let currentMediaList = [];
 
 // ========== HIỂN THỊ MODAL CHỈNH SỬA ==========
 function showEditModal(imageBlobOrFile) {
@@ -40,7 +49,6 @@ function showEditModal(imageBlobOrFile) {
     previewImage.src = url;
     pendingImageFile = imageBlobOrFile;
     
-    // Reset form
     commentInput.value = '';
     selectedRating = 0;
     updateStarDisplay();
@@ -56,7 +64,41 @@ function hideEditModal() {
     pendingImageFile = null;
 }
 
-// ========== XỬ LÝ RATING STAR (có thể bỏ chọn) ==========
+// ========== HIỂN THỊ MODAL CHI TIẾT ==========
+function showDetailModal(item) {
+    detailImage.src = item.url;
+    
+    // Hiển thị rating sao
+    if (item.rating > 0) {
+        detailRating.innerHTML = '★'.repeat(item.rating) + '☆'.repeat(5 - item.rating);
+    } else {
+        detailRating.innerHTML = 'Chưa có đánh giá';
+    }
+    
+    // Hiển thị comment
+    if (item.comment && item.comment.trim()) {
+        detailComment.innerHTML = item.comment;
+    } else {
+        detailComment.innerHTML = '<span style="color: rgba(255,255,255,0.5);">Chưa có chú thích</span>';
+    }
+    
+    // Hiển thị thời gian
+    if (item.created_at) {
+        const date = new Date(item.created_at);
+        detailTime.innerHTML = date.toLocaleString('vi-VN');
+    } else {
+        detailTime.innerHTML = '';
+    }
+    
+    detailModal.classList.remove('hidden');
+}
+
+function hideDetailModal() {
+    detailModal.classList.add('hidden');
+    detailImage.src = '';
+}
+
+// ========== XỬ LÝ RATING STAR ==========
 function updateStarDisplay() {
     starSpans.forEach((span, idx) => {
         if (idx < selectedRating) {
@@ -130,6 +172,14 @@ confirmSendBtn.onclick = async () => {
 
 cancelEditBtn.onclick = hideEditModal;
 closeEditModal.onclick = hideEditModal;
+closeDetailModal.onclick = hideDetailModal;
+
+// Click outside để đóng modal chi tiết
+detailModal.addEventListener('click', (e) => {
+    if (e.target === detailModal) {
+        hideDetailModal();
+    }
+});
 
 // ========== MỞ CAMERA ==========
 async function startCamera() {
@@ -213,6 +263,8 @@ async function loadPhotos() {
         
         if (error) throw error;
         
+        currentMediaList = data || [];
+        
         if (!data || data.length === 0) {
             imageGrid.innerHTML = '<div class="loading">📭 Chưa có ảnh nào</div>';
             if (photoCount) photoCount.textContent = '';
@@ -221,18 +273,36 @@ async function loadPhotos() {
         
         if (photoCount) photoCount.textContent = `${data.length} ảnh`;
         
-        imageGrid.innerHTML = data.map(item => `
-            <div class="image-item" onclick="window.open('${item.url}', '_blank')">
+        imageGrid.innerHTML = data.map((item, index) => `
+            <div class="image-item" data-index="${index}">
                 <img src="${item.url}" alt="photo" loading="lazy">
-                ${item.comment ? `<div class="image-comment">💬 ${item.comment.substring(0, 20)}</div>` : ''}
+                ${item.comment ? `<div class="image-comment">💬 ${escapeHtml(item.comment.substring(0, 20))}</div>` : ''}
                 ${item.rating > 0 ? `<div class="image-rating">${'★'.repeat(item.rating)}</div>` : ''}
             </div>
         `).join('');
+        
+        // Gán sự kiện click cho từng ảnh
+        document.querySelectorAll('.image-item').forEach((item, idx) => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const actualIndex = parseInt(item.dataset.index);
+                if (currentMediaList[actualIndex]) {
+                    showDetailModal(currentMediaList[actualIndex]);
+                }
+            });
+        });
         
     } catch (error) {
         console.error('Load error:', error);
         imageGrid.innerHTML = '<div class="loading">❌ Lỗi tải ảnh</div>';
     }
+}
+
+// Hàm escape HTML để hiển thị emoji an toàn
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ========== UPLOAD TỪ FILE ==========
@@ -280,6 +350,15 @@ function setupRealtime() {
             () => loadPhotos()
         )
         .subscribe();
+}
+
+// ========== HIỂN THỊ URL ==========
+if (urlText && copyBtn) {
+    urlText.textContent = window.location.href;
+    copyBtn.onclick = () => {
+        navigator.clipboard.writeText(window.location.href);
+        alert('✅ Đã copy link!');
+    };
 }
 
 // ========== GÁN SỰ KIỆN ==========
