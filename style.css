@@ -748,6 +748,44 @@ html, body {
   margin-top: 12px;
 }
 
+/* ========== DELETE BUTTONS ========== */
+.image-delete-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(0,0,0,0.7);
+    color: #ff4757;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: transform 0.1s ease;
+    z-index: 5;
+}
+
+.image-delete-badge:active {
+    transform: scale(0.9);
+}
+
+.delete-photo-btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 16px;
+    background: rgba(255, 71, 87, 0.9);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.delete-photo-btn:active {
+    transform: scale(0.97);
+}
+
 /* ══════════════════
    RESPONSIVE
 ══════════════════ */

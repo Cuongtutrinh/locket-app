@@ -4,6 +4,19 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// ========== TẠO ID DUY NHẤT CHO NGƯỜI DÙNG (lưu vào localStorage) ==========
+function getDeviceId() {
+    let deviceId = localStorage.getItem('locket_device_id');
+    if (!deviceId) {
+        deviceId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('locket_device_id', deviceId);
+    }
+    return deviceId;
+}
+
+const currentDeviceId = getDeviceId();
+console.log('Device ID:', currentDeviceId);
+
 // ========== DOM ELEMENTS ==========
 const openCameraBtn = document.getElementById('openCameraBtn');
 const uploadImageBtn = document.getElementById('uploadImageBtn');
@@ -64,7 +77,7 @@ function hideEditModal() {
     pendingImageFile = null;
 }
 
-// ========== HIỂN THỊ MODAL CHI TIẾT ==========
+// ========== HIỂN THỊ MODAL CHI TIẾT (có nút xóa nếu là chủ sở hữu) ==========
 function showDetailModal(item) {
     detailImage.src = item.url;
     
@@ -90,12 +103,76 @@ function showDetailModal(item) {
         detailTime.innerHTML = '';
     }
     
+    // Kiểm tra xem người dùng hiện tại có phải chủ sở hữu không
+    const isOwner = item.device_id === currentDeviceId;
+    
+    // Thêm hoặc xóa nút xóa trong modal chi tiết
+    let deleteBtn = document.getElementById('deletePhotoBtn');
+    if (!deleteBtn) {
+        const detailInfo = document.querySelector('.detail-info');
+        if (detailInfo) {
+            deleteBtn = document.createElement('button');
+            deleteBtn.id = 'deletePhotoBtn';
+            deleteBtn.className = 'delete-photo-btn';
+            deleteBtn.innerHTML = '🗑️ Xóa ảnh';
+            detailInfo.appendChild(deleteBtn);
+        }
+    }
+    
+    if (deleteBtn) {
+        if (isOwner) {
+            deleteBtn.style.display = 'block';
+            deleteBtn.onclick = () => confirmDelete(item);
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+    
     detailModal.classList.remove('hidden');
 }
 
 function hideDetailModal() {
     detailModal.classList.add('hidden');
     detailImage.src = '';
+}
+
+// ========== XÓA ẢNH ==========
+async function confirmDelete(item) {
+    const confirmed = confirm(`Bạn có chắc chắn muốn xóa ảnh này?\n${item.comment ? 'Chú thích: ' + item.comment : ''}`);
+    if (!confirmed) return;
+    
+    try {
+        // Xóa khỏi Storage (lấy đường dẫn từ URL)
+        const urlParts = item.url.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `photos/${fileName}`;
+        
+        const { error: storageError } = await supabase.storage
+            .from('locket-media')
+            .remove([filePath]);
+        
+        if (storageError) {
+            console.warn('Lỗi xóa file storage:', storageError);
+            // Vẫn tiếp tục xóa record trong database
+        }
+        
+        // Xóa khỏi database
+        const { error: dbError } = await supabase
+            .from('media')
+            .delete()
+            .eq('id', item.id)
+            .eq('device_id', currentDeviceId); // Chỉ xóa nếu đúng device_id
+        
+        if (dbError) throw dbError;
+        
+        alert('✅ Đã xóa ảnh thành công!');
+        hideDetailModal();
+        loadPhotos(); // Refresh lại gallery
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('❌ Xóa ảnh thất bại: ' + error.message);
+    }
 }
 
 // ========== XỬ LÝ RATING STAR ==========
@@ -143,6 +220,7 @@ async function uploadPhotoWithMetadata(file, metadata) {
                 type: 'image',
                 comment: metadata.comment || '',
                 rating: metadata.rating || 0,
+                device_id: currentDeviceId,
                 created_at: new Date().toISOString()
             }]);
         
@@ -273,28 +351,78 @@ async function loadPhotos() {
         
         if (photoCount) photoCount.textContent = `${data.length} ảnh`;
         
-        imageGrid.innerHTML = data.map((item, index) => `
+        imageGrid.innerHTML = data.map((item, index) => {
+            const isOwner = item.device_id === currentDeviceId;
+            return `
             <div class="image-item" data-index="${index}">
                 <img src="${item.url}" alt="photo" loading="lazy">
                 ${item.comment ? `<div class="image-comment">💬 ${escapeHtml(item.comment.substring(0, 20))}</div>` : ''}
                 ${item.rating > 0 ? `<div class="image-rating">${'★'.repeat(item.rating)}</div>` : ''}
+                ${isOwner ? `<div class="image-delete-badge" data-id="${item.id}">🗑️</div>` : ''}
             </div>
-        `).join('');
+        `}).join('');
         
         // Gán sự kiện click cho từng ảnh
         document.querySelectorAll('.image-item').forEach((item, idx) => {
+            const actualIndex = parseInt(item.dataset.index);
+            
+            // Click vào ảnh (trừ khi click vào nút xóa)
             item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const actualIndex = parseInt(item.dataset.index);
-                if (currentMediaList[actualIndex]) {
-                    showDetailModal(currentMediaList[actualIndex]);
+                if (!e.target.classList.contains('image-delete-badge')) {
+                    if (currentMediaList[actualIndex]) {
+                        showDetailModal(currentMediaList[actualIndex]);
+                    }
                 }
             });
+            
+            // Gán sự kiện xóa cho badge
+            const deleteBadge = item.querySelector('.image-delete-badge');
+            if (deleteBadge) {
+                deleteBadge.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const photoId = deleteBadge.dataset.id;
+                    const photoItem = currentMediaList.find(p => p.id == photoId);
+                    if (photoItem) {
+                        const confirmed = confirm('Xóa ảnh này?');
+                        if (confirmed) {
+                            await deletePhotoById(photoId, photoItem.url);
+                        }
+                    }
+                });
+            }
         });
         
     } catch (error) {
         console.error('Load error:', error);
         imageGrid.innerHTML = '<div class="loading">❌ Lỗi tải ảnh</div>';
+    }
+}
+
+// Hàm xóa ảnh theo ID
+async function deletePhotoById(photoId, photoUrl) {
+    try {
+        // Xóa khỏi Storage
+        const urlParts = photoUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `photos/${fileName}`;
+        
+        await supabase.storage.from('locket-media').remove([filePath]);
+        
+        // Xóa khỏi database
+        const { error } = await supabase
+            .from('media')
+            .delete()
+            .eq('id', photoId)
+            .eq('device_id', currentDeviceId);
+        
+        if (error) throw error;
+        
+        alert('✅ Đã xóa ảnh!');
+        loadPhotos();
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('❌ Xóa thất bại: ' + error.message);
     }
 }
 
@@ -347,6 +475,10 @@ function setupRealtime() {
         .channel('photos')
         .on('postgres_changes', 
             { event: 'INSERT', schema: 'public', table: 'media' },
+            () => loadPhotos()
+        )
+        .on('postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'media' },
             () => loadPhotos()
         )
         .subscribe();
